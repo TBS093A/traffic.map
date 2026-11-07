@@ -184,10 +184,31 @@ def prepare(src, out, addresses=None, map_cache=None):
     raw = collections.defaultdict(list)
     for r in rd('shapes.txt'):
         raw[r['shape_id']].append((int(r['shape_pt_sequence']), float(r['shape_pt_lat']), float(r['shape_pt_lon'])))
+    # w kształtach tras przy każdym przystanku jest punkt dokładnie na słupku, odsunięty od osi jezdni;
+    # autobus wjeżdżałby w nim w "zatokę", a wiata brałaby z niego krzywy kierunek
+    stop_cells = collections.defaultdict(list)
+    for sx, sy, *_ in out_stops:
+        stop_cells[(math.floor(sx / 10), math.floor(sy / 10))].append((sx, sy))
+
+    def on_stop(p):
+        cx, cy = math.floor(p[0] / 10), math.floor(p[1] / 10)
+        return any(math.hypot(p[0] - sx, p[1] - sy) < 1.5 for i in (-1, 0, 1) for j in (-1, 0, 1) for sx, sy in stop_cells.get((cx + i, cy + j), ()))
+
+    def drop_stop_spikes(pts):
+        out = pts[:1]
+        for k in range(1, len(pts) - 1):
+            a, p, b = out[-1], pts[k], pts[k + 1]
+            dx, dy = b[0] - a[0], b[1] - a[1]
+            L = math.hypot(dx, dy)
+            if on_stop(p) and 0 < L < 400 and abs((p[0] - a[0]) * dy - (p[1] - a[1]) * dx) / L > .8:
+                continue
+            out.append(p)
+        return out + pts[-1:]
+
     shape_pts = {}
     for k, v in raw.items():
         v.sort()
-        pts = [proj(la, lo) for _, la, lo in v]
+        pts = drop_stop_spikes([proj(la, lo) for _, la, lo in v])
         clean = [pts[0]]
         for p in pts[1:]:
             if math.hypot(p[0] - clean[-1][0], p[1] - clean[-1][1]) > 0.05:

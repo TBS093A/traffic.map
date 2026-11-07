@@ -1298,29 +1298,34 @@ $('#sheet').addEventListener('click', e => {
 
 function pick(px, py) {
   if (pickMode) { finishPick(px, py); return; }
-  let best = 26, bt = -1;
-  for (const b of buses) { if (b.ti < 0) continue; const [sx, sy] = worldToScreen(b.x, 2, -b.y); const d = Math.hypot(sx - px, sy - py); if (d < best) { best = d; bt = b.ti; } }
-  if (bt >= 0) { select({ trip: bt }); return; }
-  if (cam.half < 1600) {
-    let bs = -1; best = 18;
-    D.stops.forEach(([x, y], i) => { const [sx, sy] = worldToScreen(x, 1.5, -y); const d = Math.hypot(sx - px, sy - py); if (d < best) { best = d; bs = i; } });
-    if (bs >= 0) { select({ stop: bs, route: -1 }); return; }
+  // wygrywa najbliższy cel: autobus (środek pudła) albo przystanek (kropka na dachu wiaty lub sama wiata)
+  let bestB = 30, bt = -1, bestS = 34, bs = -1;
+  for (const b of buses) { if (b.ti < 0) continue; const [sx, sy] = worldToScreen(b.x, (b.h || 0) + busScale() * 1.5, -b.y); const d = Math.hypot(sx - px, sy - py); if (d < bestB) { bestB = d; bt = b.ti; } }
+  if (cam.half < 2600) {
+    const roof = stopRoofY(cam.half);
+    D.stops.forEach(([x, y], i) => {
+      const [sx, sy] = worldToScreen(x, roof, -y), [gx, gy] = worldToScreen(x, roof / 2, -y);
+      const d = Math.min(Math.hypot(sx - px, sy - py), Math.hypot(gx - px, gy - py));
+      if (d < bestS) { bestS = d; bs = i; }
+    });
   }
+  if (bs >= 0 && (bt < 0 || bestS <= bestB)) { select({ stop: bs, route: -1 }); return; }
+  if (bt >= 0) { select({ trip: bt }); return; }
   if (selTrip >= 0 || selStop >= 0) select({ route: selRoute });
 }
 
 /* ---- sterowanie ---- */
-const pointers = new Map(); let gesture = null, moved = 0;
+const pointers = new Map(); let gesture = null, moved = 0, tapSlop = 5;   // palec drży bardziej niż mysz
 canvas.addEventListener('pointerdown', e => {
   canvas.setPointerCapture(e.pointerId); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  moved = pointers.size > 1 ? 99 : 0; gesture = null; hideHint();
+  moved = pointers.size > 1 ? 99 : 0; tapSlop = e.pointerType === 'mouse' ? 5 : 12; gesture = null; hideHint();
 });
 canvas.addEventListener('pointermove', e => {
   if (!pointers.has(e.pointerId)) return;
   const prev = pointers.get(e.pointerId); const cur = { x: e.clientX, y: e.clientY };
   if (pointers.size === 1) {
     moved += Math.hypot(cur.x - prev.x, cur.y - prev.y);
-    if (moved > 4) { const g1 = screenToGround(prev.x, prev.y), g2 = screenToGround(cur.x, cur.y); cam.x += g1[0] - g2[0]; cam.z += g1[1] - g2[1]; follow = false; }
+    if (moved > tapSlop) { const g1 = screenToGround(prev.x, prev.y), g2 = screenToGround(cur.x, cur.y); cam.x += g1[0] - g2[0]; cam.z += g1[1] - g2[1]; follow = false; }
   } else if (pointers.size === 2) {
     const [a, b] = [...pointers.values()]; const other = a === prev ? b : a;
     const d0 = Math.hypot(prev.x - other.x, prev.y - other.y), d1 = Math.hypot(cur.x - other.x, cur.y - other.y);
@@ -1330,7 +1335,7 @@ canvas.addEventListener('pointermove', e => {
   }
   pointers.set(e.pointerId, cur);
 });
-const endPtr = e => { if (!pointers.has(e.pointerId)) return; const p = pointers.get(e.pointerId); pointers.delete(e.pointerId); if (pointers.size === 0 && moved <= 4 && e.type === 'pointerup') pick(p.x, p.y); if (pointers.size) moved = 99; saveCam(); };
+const endPtr = e => { if (!pointers.has(e.pointerId)) return; const p = pointers.get(e.pointerId); pointers.delete(e.pointerId); if (pointers.size === 0 && moved <= tapSlop && e.type === 'pointerup') pick(p.x, p.y); if (pointers.size) moved = 99; saveCam(); };
 canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointercancel', endPtr);
 canvas.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.clientX, e.clientY, Math.exp(e.deltaY * .0015)); hideHint(); saveCam(); }, { passive: false });
 let saveT = 0; function saveCam() { clearTimeout(saveT); saveT = setTimeout(() => { store.set('cam', [cam.x, cam.z, cam.yawT]); store.set('half', cam.half); }, 400); }
