@@ -11,6 +11,10 @@ Budynki, woda, teren, drogi i tory pochodzą z OpenStreetMap.
 |---|---|
 | ![Wisłok i dzielnice na wschód od centrum: osiedla, hale i zabudowa jednorodzinna](docs/screenshots/wislok.png) | ![Cały obszar sieci: Rzeszów z Wisłokiem, zalewem i okolicznymi lasami](docs/screenshots/miasto-dzien.png) |
 | **Wisłok:** rzeka, osiedla i hale | **Całość:** miasto, zalew i lasy w okolicy |
+| ![Millenium Hall z przeszklonym parterem i biurowce obok](docs/screenshots/millenium.png) | ![Stadion Stali z murawą i trybuną nad Wisłokiem](docs/screenshots/stadion.png) |
+| **Galerie i biurowce:** przeszklony parter, szklane fasady | **Stadiony:** murawa, boiska, trybuny |
+| ![Most nad Wisłokiem na filarach, z podjazdami po obu stronach](docs/screenshots/most.png) | |
+| **Mosty:** pomost z podjazdami i filarami | |
 | ![Centrum miasta nocą, z oświetlonymi oknami i autobusami na trasach](docs/screenshots/miasto-noc.png) | ![Podświetlona trasa linii 17 z dwoma autobusami w drodze](docs/screenshots/linia.png) |
 | **Noc:** światła w oknach i autobusy według rozkładu | **Linia:** trasa i autobusy wybranej linii |
 | ![Zbliżenie na zabudowę z tablicą odjazdów przystanku Rejtana / Krzyżanowskiego](docs/screenshots/przystanek.png) | ![Siatka numerów wszystkich linii ZTM](docs/screenshots/lista-linii.png) |
@@ -124,9 +128,9 @@ kompaktowy format wklejany do strony (ok. 3,6 MB po kompresji, strona ma ok. 6 M
 
 | Warstwa | Co z niej powstaje |
 |---|---|
-| budynki | ok. 167 tys. brył. Prostokątne zapisywane jako obrócony prostopadłościan, pozostałe z pełnym obrysem i dziedzińcami |
-| teren | lasy, łąki, pola, ogródki, cmentarze, tereny przemysłowe, parkingi, boiska, woda (Wisłok, zalew, stawy) |
-| drogi | od autostrad po drogi dojazdowe (te ostatnie tylko z bliska) oraz tory kolejowe |
+| budynki | ok. 167 tys. brył. Prostokątne zapisywane jako obrócony prostopadłościan, pozostałe z pełnym obrysem i dziedzińcami. Galerie handlowe, biurowce, kościoły i trybuny mają własny wygląd; wieżowce i obiekty specjalne widać z każdej odległości |
+| teren | lasy, łąki, pola, ogródki, cmentarze, tereny przemysłowe, parkingi, obiekty sportowe (murawa, bieżnie), woda (Wisłok, zalew, stawy) |
+| drogi | od autostrad po drogi dojazdowe (te ostatnie tylko z bliska) oraz tory kolejowe. Mosty i wiadukty dłuższe niż 15 m są podniesione, z podjazdami i filarami; autobusy wjeżdżają na pomost |
 | drzewa | pojedyncze drzewa (`natural=tree`) w dokładnych pozycjach |
 
 Bez danych OSM (np. `"map": {"enabled": false}`) strona wraca do zabudowy poglądowej, generowanej wzdłuż tras.

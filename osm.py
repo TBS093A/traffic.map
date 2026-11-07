@@ -24,7 +24,7 @@ BOX_MAX_AREA = 70                       # drobne budynki zawsze jako prostopadł
 FLOOR_M = 3.0
 
 LAND_CLASSES = ['residential', 'farmland', 'meadow', 'farmyard', 'industrial', 'orchard', 'cemetery', 'grass',
-                'forest', 'scrub', 'wetland', 'sand', 'sport', 'parking', 'water']
+                'forest', 'scrub', 'wetland', 'sand', 'sport', 'pitch', 'track', 'parking', 'water']
 LAND_TAGS = {
     'landuse': {'residential': 'residential', 'farmland': 'farmland', 'meadow': 'meadow', 'farmyard': 'farmyard',
                 'industrial': 'industrial', 'commercial': 'industrial', 'retail': 'industrial',
@@ -34,7 +34,7 @@ LAND_TAGS = {
                 'reservoir': 'water', 'basin': 'water'},
     'natural': {'water': 'water', 'wood': 'forest', 'scrub': 'scrub', 'grassland': 'meadow', 'heath': 'meadow',
                 'wetland': 'wetland', 'sand': 'sand', 'beach': 'sand'},
-    'leisure': {'park': 'grass', 'garden': 'grass', 'golf_course': 'grass', 'pitch': 'sport', 'track': 'sport',
+    'leisure': {'park': 'grass', 'garden': 'grass', 'golf_course': 'grass', 'pitch': 'pitch', 'track': 'track',
                 'stadium': 'sport', 'sports_centre': 'sport'},
     'amenity': {'parking': 'parking'},
     'waterway': {'riverbank': 'water'},
@@ -56,6 +56,10 @@ KIND = {'apartments': 0, 'dormitory': 0, 'hotel': 0, 'office': 0, 'hospital': 0,
         'college': 0, 'public': 0, 'civic': 0, 'government': 0, 'commercial': 0,
         'retail': 8, 'supermarket': 8, 'industrial': 8, 'warehouse': 8, 'manufacture': 8, 'garage': 8, 'garages': 8,
         'greenhouse': 8, 'service': 8, 'roof': 8, 'carport': 8, 'construction': 8}
+# obiekty specjalne: 9 = galeria handlowa, 10 = biurowiec (szkło), 11 = kościół, 12 = trybuna
+CHURCH = {'church', 'cathedral', 'chapel', 'basilica', 'mosque', 'synagogue', 'temple'}
+SPECIAL_H = {'church': 16, 'cathedral': 26, 'basilica': 22, 'chapel': 7, 'grandstand': 9}
+LOW_RISE = {'apartments', 'residential', 'dormitory', 'house', 'detached', 'terrace', 'yes'}
 SKIP_BUILDING = {'no', 'ruins', 'collapsed', 'demolished', 'proposed', 'razed'}
 
 
@@ -64,17 +68,18 @@ def queries(bbox, timeout):
     s, w, n, e = bbox
     b = f'({s},{w},{n},{e})'
     head = f'[out:json][timeout:{timeout}];'      # bez dużego maxsize: obciążony serwer od razu odrzuca takie zapytania
-    union = []
+    ways, rels = [], []
     for key, vals in LAND_TAGS.items():
         rx = '|'.join(sorted(vals))
-        union.append(f'way["{key}"~"^({rx})$"]{b};')
+        ways.append(f'way["{key}"~"^({rx})$"]{b};')
         if key != 'amenity':
-            union.append(f'relation["{key}"~"^({rx})$"]{b};')
-    union.append(f'way["waterway"~"^(river|stream|canal)$"]{b};')
+            rels.append(f'relation["{key}"~"^({rx})$"]{b};')
+    ways.append(f'way["waterway"~"^(river|stream|canal)$"]{b};')
     roads = '|'.join(sorted(ROAD_BUCKETS))
+    # relacje: "out body", bo samo "out tags" pomija członków, a z nimi całą geometrię
     return {
-        'buildings': f'{head}(way["building"]{b};relation["building"]["type"="multipolygon"]{b};);out tags geom;',
-        'land': f'{head}({"".join(union)});out tags geom;',
+        'buildings': f'{head}way["building"]{b};out tags geom;relation["building"]["type"="multipolygon"]{b};out body geom;',
+        'land': f'{head}({"".join(ways)});out tags geom;({"".join(rels)});out body geom;',
         'roads': f'{head}(way["highway"~"^({roads})$"]{b};way["railway"="rail"]{b};);out tags geom;',
         'trees': f'{head}node["natural"="tree"]{b};out skel;',
     }
@@ -224,6 +229,8 @@ def building_style(tags, area):
     real = h is not None or levels is not None
     if h is None and levels is not None:
         h = (levels + .5 * (number(tags.get('roof:levels')) or 0)) * FLOOR_M + .6
+    if h is None and typ in SPECIAL_H:
+        h = SPECIAL_H[typ]
     if h is None:
         floors = FLOORS.get(typ)
         if floors is None:                      # building=yes: oceniamy po powierzchni obrysu
@@ -237,6 +244,14 @@ def building_style(tags, area):
         kind = 7 if area < 300 else 0 if area < 1500 else 8
     if area < 35:
         kind = 7 if typ in FLOORS and typ not in KIND else 8
+    if typ in CHURCH or (tags.get('amenity') == 'place_of_worship' and typ == 'yes'):
+        kind = 11
+    elif typ == 'grandstand':
+        kind = 12
+    elif tags.get('shop') == 'mall' or (typ in ('retail', 'commercial') and area >= 2500):
+        kind = 9
+    elif typ == 'office' or (h >= 30 and typ not in LOW_RISE):
+        kind = 10
     return max(2.5, min(h, 260)), kind, real
 
 
@@ -302,7 +317,9 @@ def compact_land(elements):
 
 
 def compact_roads(elements):
+    """Drogi i tory w kubełkach klas; mosty osobno: [kubełek, poziom (layer), linia]."""
     buckets = [[] for _ in range(RAIL_BUCKET + 1)]
+    bridges = []
     for e in elements:
         tags = e.get('tags') or {}
         if tags.get('tunnel') in ('yes', 'building_passage') or tags.get('area') == 'yes':
@@ -311,9 +328,13 @@ def compact_roads(elements):
         if b is None or not e.get('geometry'):
             continue
         pts = dp(to_xy(e['geometry']), ROAD_EPS[b])
-        if len(pts) >= 2:
+        if len(pts) < 2:
+            continue
+        if tags.get('bridge', 'no') != 'no':
+            bridges.append([b, int(min(3, max(1, number(tags.get('layer')) or 1))), enc_ring(pts)])
+        else:
             buckets[b].append(enc_ring(pts))
-    return buckets
+    return buckets, bridges
 
 
 def compact(cache):
@@ -325,11 +346,11 @@ def compact(cache):
     del elements
     n_buildings = len(b['x']) + len(polys)
     land, rivers, streams = compact_land(load_layer(cache, 'land'))
-    roads = compact_roads(load_layer(cache, 'roads'))
+    roads, bridges = compact_roads(load_layer(cache, 'roads'))
     trees = enc_ring(sorted((proj(e['lat'], e['lon']) for e in load_layer(cache, 'trees') if 'lat' in e)))
-    data = {'classes': LAND_CLASSES, 'b': b, 'p': polys, 'l': land, 'r': roads, 'w': [rivers, streams], 't': trees}
+    data = {'classes': LAND_CLASSES, 'b': b, 'p': polys, 'l': land, 'r': roads, 'rb': bridges, 'w': [rivers, streams], 't': trees}
     stats = {'buildings': n_buildings, 'buildings_mesh': len(polys), 'buildings_real_height': n_real,
-             'land_polygons': len(land), 'road_lines': sum(len(x) for x in roads),
+             'land_polygons': len(land), 'road_lines': sum(len(x) for x in roads), 'bridges': len(bridges),
              'water_lines': len(rivers) + len(streams), 'trees_osm': len(trees) // 2}
     return data, stats
 

@@ -382,8 +382,8 @@ void main(){
 
 // --- drogi i podświetlenie trasy
 const roadP = prog(COMMON + `
-layout(location=0) in vec4 aP; layout(location=1) in vec2 aUV; uniform float uY; uniform float uHW; out vec2 vUV;
-void main(){ vUV=aUV; vec2 w=aP.xy+aP.zw*uHW; gl_Position=uVP*vec4(w.x,uY,w.y,1.); }`,
+layout(location=0) in vec4 aP; layout(location=1) in vec2 aUV; layout(location=2) in float aH; uniform float uY; uniform float uHW; out vec2 vUV;
+void main(){ vUV=aUV; vec2 w=aP.xy+aP.zw*uHW; gl_Position=uVP*vec4(w.x,uY+aH,w.y,1.); }`,
 COMMON + `
 in vec2 vUV; uniform int uMode; uniform vec3 uHL; layout(location=0) out vec4 oC; layout(location=1) out vec4 oN;
 void main(){
@@ -409,12 +409,37 @@ void main(){
 
 // --- instancjonowane prostopadłościany: budynki, drzewa, przystanki, autobusy
 const SOLID_FS = COMMON + `
-in vec3 vNor; in vec3 vLN; in vec3 vCol; in vec3 vLoc; in vec3 vSize; flat in float vKind; flat in float vSeed;
+in vec3 vNor; in vec3 vLN; in vec3 vCol; in vec3 vLoc; in vec3 vSize; in vec3 vWP; flat in float vKind; flat in float vSeed;
 layout(location=0) out vec4 oC; layout(location=1) out vec4 oN;
 void main(){
   vec3 n=normalize(vNor); int k=int(vKind+.5); vec3 col=vCol; vec3 emis=vec3(0); float flag=1.;
   bool side=abs(vLN.y)<.5;
-  if(k==0||k==7||k==8){
+  if(k>=9&&k<=12){                 // obiekty specjalne
+    bool alongX=abs(vLN.z)>.5; float W=alongX?vSize.x:vSize.z, u=(alongX?vLoc.x:vLoc.z)+W*.5, v=vLoc.y, H=vSize.y;
+    float r=fract(vSeed*.173);
+    if(side){
+      if(k==9){                    // galeria: przeszklony parter, jasna elewacja w pionowe pasy, gzyms
+        if(v<4.5){ col=vec3(.24,.4,.58); emis=vec3(1.,.86,.55)*uNight*.8; }
+        else col = fract(u/7.)<.08 ? vec3(.5,.5,.52) : vec3(.84,.82,.78);
+        if(v>H-1.4) col=vec3(.36,.36,.4);
+      } else if(k==10){            // biurowiec: szklana ściana kurtynowa
+        vec2 c=vec2(floor(u/1.7),floor(v/3.6)), f=vec2(fract(u/1.7),fract(v/3.6));
+        bool m=f.x<.12||f.y<.14;
+        col = m ? vec3(.62,.66,.7) : mix(vec3(.24,.42,.62),vec3(.47,.67,.84),step(.55,h21(c+vSeed)));
+        if(!m) emis=vec3(1.,.88,.6)*uNight*step(.55,h21(c*1.37+vSeed*3.1));
+      } else if(k==11){            // kościół: wysokie, wąskie okna
+        float w=step(.4,fract(u/4.5))*step(fract(u/4.5),.6)*step(2.5,v)*step(v,H-2.5);
+        if(w>.5){ col=vec3(.22,.28,.42); emis=vec3(1.,.78,.4)*uNight*.7; }
+      } else {                     // trybuna
+        col=vec3(.62,.6,.57);
+      }
+    } else if(vLN.y>0.){
+      if(k==9) col=mix(vec3(.6,.6,.6),vec3(.42,.43,.46),step(.9,h21(floor(vWP.xz/5.))));
+      else if(k==10) col=vec3(.36,.38,.42);
+      else if(k==11) col= r<.45 ? vec3(.62,.27,.2) : (r<.75 ? vec3(.33,.55,.47) : vec3(.3,.31,.36));
+      else col=mix(vec3(.24,.42,.7),vec3(.86,.86,.84),step(.5,fract(vWP.x/2.5)));
+    }
+  } else if(k==0||k==7||k==8){
     if(side && k!=8){
       bool alongX = abs(vLN.z)>.5;
       float W = alongX? vSize.x : vSize.z;
@@ -449,21 +474,21 @@ void main(){
 const boxP = prog(COMMON + `
 layout(location=0) in vec3 aPos; layout(location=1) in vec3 aNor;
 layout(location=2) in vec4 iA; layout(location=3) in vec4 iB; layout(location=4) in vec4 iC;
-out vec3 vNor; out vec3 vLN; out vec3 vCol; out vec3 vLoc; out vec3 vSize; flat out float vKind; flat out float vSeed;
+out vec3 vNor; out vec3 vLN; out vec3 vCol; out vec3 vLoc; out vec3 vSize; out vec3 vWP; flat out float vKind; flat out float vSeed;
 void main(){
   vec3 l=aPos*iB.xyz; float c=cos(iA.w), s=sin(iA.w);
   vec3 r=vec3(l.x*c+l.z*s, l.y, -l.x*s+l.z*c);
   vNor=vec3(aNor.x*c+aNor.z*s, aNor.y, -aNor.x*s+aNor.z*c);
   vLN=aNor; vCol=iC.rgb; vLoc=l; vSize=iB.xyz; vKind=iB.w; vSeed=iC.w;
-  gl_Position=uVP*vec4(iA.xyz+r,1.);
+  vWP=iA.xyz+r; gl_Position=uVP*vec4(vWP,1.);
 }`,
 SOLID_FS);
 // ściana: vLoc.x to pozycja wzdłuż ściany, więc ten sam shader rysuje okna
 const meshP = prog(COMMON + `
 layout(location=0) in vec3 aPos; layout(location=1) in vec3 aNor; layout(location=2) in vec3 aWall; layout(location=3) in vec2 aKS; layout(location=4) in vec3 aCol;
-out vec3 vNor; out vec3 vLN; out vec3 vCol; out vec3 vLoc; out vec3 vSize; flat out float vKind; flat out float vSeed;
+out vec3 vNor; out vec3 vLN; out vec3 vCol; out vec3 vLoc; out vec3 vSize; out vec3 vWP; flat out float vKind; flat out float vSeed;
 void main(){
-  vNor=aNor; vLN=abs(aNor.y)<.5?vec3(0,0,1):vec3(0,1,0); vCol=aCol; vSize=vec3(aWall.y*.1,aWall.z*.1,0.);
+  vWP=aPos; vNor=aNor; vLN=abs(aNor.y)<.5?vec3(0,0,1):vec3(0,1,0); vCol=aCol; vSize=vec3(aWall.y*.1,aWall.z*.1,0.);
   vLoc=vec3(aWall.x*.1-vSize.x*.5,aPos.y,0.); vKind=aKS.x; vSeed=aKS.y;
   gl_Position=uVP*vec4(aPos,1.);
 }`, SOLID_FS);
@@ -491,8 +516,10 @@ void main(){
   else if(vC==9) c=mix(vec3(.28,.42,.23),vec3(.2,.34,.2),step(.55,n));
   else if(vC==10) c=mix(vec3(.29,.43,.37),vec3(.22,.37,.42),step(.55,n));
   else if(vC==11) c=vec3(.82,.74,.54);
-  else if(vC==12) c=vec3(.3,.56,.3);
-  else if(vC==13) c=vec3(.4,.39,.4);
+  else if(vC==12) c=mix(vec3(.55,.55,.52),vec3(.5,.5,.48),step(.55,n));
+  else if(vC==13) c=mix(vec3(.3,.56,.28),vec3(.36,.62,.32),step(.5,fract((p.x+p.y)/12.)));
+  else if(vC==14) c=mix(vec3(.66,.33,.24),vec3(.6,.3,.22),step(.6,n));
+  else if(vC==15) c=vec3(.4,.39,.4);
   else { float w=step(.8,vnoise(vec2(p.x/26.+uTime*.25,p.y/7.))); c=mix(vec3(.17,.34,.54),vec3(.27,.45,.66),w); }
   oC=vec4(c*toon(vec3(0,1,0)),1.); oN=vec4(.5,1.,.5,1.);
 }`);
@@ -598,24 +625,48 @@ function boxVAO(instData, dynamic) {
 }
 
 // pas drogi z listy tras: [x, z, offset x, offset z (w jednostkach pół-szerokości), poprzecznie, wzdłuż]
-function stripGeo(shapeIdxs) { return stripLines(shapeIdxs.map(s => S.shapes[s])); }
+// pas: [x, z, offset x, offset z, poprzecznie, wzdłuż, wysokość nad gruntem]
+const STRIP = [[0, 4, 7, 0], [1, 2, 7, 4], [2, 1, 7, 6]];
+function stripGeo(shapeIdxs) { return stripLines(shapeIdxs.map(s => onBridges(S.shapes[s]))); }
 function stripLines(lines) {
   let segs = 0; for (const l of lines) segs += l.cum.length - 1;
-  const out = new Float32Array(segs * 6 * 6); let o = 0;
-  for (const { pts, cum } of lines) {
+  const out = new Float32Array(segs * 6 * 7); let o = 0;
+  for (const { pts, cum, h } of lines) {
     for (let i = 0; i < cum.length - 1; i++) {
       const ax = pts[2 * i], ay = pts[2 * i + 1], bx = pts[2 * i + 2], by = pts[2 * i + 3];
       const L = Math.hypot(bx - ax, by - ay) || 1, dx = (bx - ax) / L, dy = (by - ay) / L, e = .9;
-      const A = [ax, ay, -dx * e, -dy * e, cum[i]], B = [bx, by, dx * e, dy * e, cum[i + 1]];
+      const A = [ax, ay, -dx * e, -dy * e, cum[i], h ? h[i] : 0], B = [bx, by, dx * e, dy * e, cum[i + 1], h ? h[i + 1] : 0];
       const V = [[A, 1], [A, -1], [B, -1], [A, 1], [B, -1], [B, 1]];
       for (const [P, side] of V) {
         out[o++] = P[0]; out[o++] = -P[1];
         out[o++] = P[2] - dy * side; out[o++] = -(P[3] + dx * side);
-        out[o++] = side; out[o++] = P[4];
+        out[o++] = side; out[o++] = P[4]; out[o++] = P[5];
       }
     }
   }
   return out;
+}
+// linia zagęszczona co ≤ step m, z wysokością w każdym punkcie: hAt(x, y, dx, dy, d)
+function densify({ pts, cum }, step, hAt) {
+  const P = [], C = [], H = [], n = cum.length;
+  for (let i = 0; i < n - 1; i++) {
+    const ax = pts[2 * i], ay = pts[2 * i + 1], bx = pts[2 * i + 2], by = pts[2 * i + 3], L = cum[i + 1] - cum[i] || 1, k = Math.max(1, Math.ceil(L / step));
+    for (let j = 0; j < k; j++) { const f = j / k, x = ax + (bx - ax) * f, y = ay + (by - ay) * f; P.push(x, y); C.push(cum[i] + L * f); H.push(hAt(x, y, (bx - ax) / L, (by - ay) / L, cum[i] + L * f)); }
+  }
+  const x = pts[2 * n - 2], y = pts[2 * n - 1], L = (cum[n - 1] - cum[n - 2]) || 1;
+  P.push(x, y); C.push(cum[n - 1]); H.push(hAt(x, y, (x - pts[2 * n - 4]) / L, (y - pts[2 * n - 3]) / L, cum[n - 1]));
+  return { pts: P, cum: C, h: H, len: cum[n - 1] };
+}
+// mosty: siatka 4 m z wysokością pomostu i jego kierunkiem, żeby autobus pod wiaduktem nie wskoczył na górę
+const BRIDGE_CELL = 4, bridgeGrid = new Map();
+const bridgeKey = (x, y) => Math.floor(x / BRIDGE_CELL) * 100003 + Math.floor(y / BRIDGE_CELL);
+function bridgeAt(x, y, dx, dy) {
+  const c = bridgeGrid.get(bridgeKey(x, y)); if (!c) return 0;
+  return Math.abs(c[1] * dx + c[2] * dy) > .85 ? c[0] : 0;
+}
+function onBridges(line) {
+  if (!bridgeGrid.size || line.cum.length < 2) return line;
+  return densify(line, 4, (x, y, dx, dy) => bridgeAt(x, y, dx, dy));
 }
 
 /* ======================= MIASTO POGLĄDOWE (proceduralne) ======================= */
@@ -748,9 +799,11 @@ function drawTiles(set, level, v) {
   }
 }
 
+const important = (h, k) => h >= 25 || k >= 9;   // wieżowce i obiekty specjalne widać z każdej odległości
 function buildWorld() {
   const M = D.map, rnd = mulberry(20261107), TREE = ['#2f5a33','#3b6d38','#46803f','#557f3a','#2c4f30'].map(hex3);
-  const WALLS = { 7: ['#e8e0cc','#d9c9a8','#f0ead8','#cdbfa5','#e0d4bc'], 0: ['#e6e2d8','#d6d2c8','#cfd6dc','#e3d9c0','#c9cfc2','#dccfb5'], 8: ['#b8bcc0','#a9adb2','#c3c1b8'] };
+  const WALLS = { 7: ['#e8e0cc','#d9c9a8','#f0ead8','#cdbfa5','#e0d4bc'], 0: ['#e6e2d8','#d6d2c8','#cfd6dc','#e3d9c0','#c9cfc2','#dccfb5'], 8: ['#b8bcc0','#a9adb2','#c3c1b8'],
+    9: ['#d6d2c8'], 10: ['#3f6f9e'], 11: ['#f0ead8','#e8dcc4','#a8503a','#e3d5b8'], 12: ['#9e9a94'] };
   for (const k in WALLS) WALLS[k] = WALLS[k].map(hex3);
   const wallOf = (k, seed) => WALLS[k][seed % WALLS[k].length];
 
@@ -759,7 +812,34 @@ function buildWorld() {
   for (let i = 0; i < b.x.length; i++) {
     x += b.x[i]; y += b.y[i];
     const X = x / 2, Y = y / 2, l = b.l[i] / 2, w = b.w[i] / 2, h = b.h[i] / 2, k = b.k[i], seed = Math.abs(x * 31 + y) % 997, c = wallOf(k, seed);
-    rows[i] = [X, Y, l * w, [X, 0, -Y, b.a[i] / 2 * Math.PI / 180, l, h, w, k, c[0], c[1], c[2], seed]];
+    rows[i] = [X, Y, important(h, k) ? 1e9 : l * w, [X, 0, -Y, b.a[i] / 2 * Math.PI / 180, l, h, w, k, c[0], c[1], c[2], seed]];
+  }
+  // mosty: pomost z podjazdami nad terenem, filary co 25 m; kładki krótsze niż 15 m zostają płaskie
+  const ROAD_HW = [8, 5.5, 3.8, 2.4, 2.6], flatBridges = [[], [], [], [], []], decks = [[], [], [], [], []], PB = {};
+  for (const [bk, layer, enc] of M.rb || []) {
+    const ln = lineOf(enc), L = ln.cum[ln.cum.length - 1];
+    if (L < 15) { flatBridges[bk].push(enc); continue; }
+    const H = 5 * layer, ramp = Math.min(30, L * .35);
+    const deck = densify(ln, 4, (x, y, dx, dy, d) => H * clamp(Math.min(d, L - d) / ramp, 0, 1));
+    decks[bk].push(deck);
+    for (let i = 0; i < deck.cum.length; i++) {
+      const j = Math.min(i + 1, deck.cum.length - 1), i0 = j === i ? i - 1 : i, dl = deck.cum[j] - deck.cum[i0] || 1;
+      const dx = (deck.pts[2 * j] - deck.pts[2 * i0]) / dl, dy = (deck.pts[2 * j + 1] - deck.pts[2 * i0 + 1]) / dl;
+      for (let o = -ROAD_HW[bk]; o <= ROAD_HW[bk]; o += 2) {     // cały przekrój pomostu
+        const x = deck.pts[2 * i] + dy * o, y = deck.pts[2 * i + 1] - dx * o, k = bridgeKey(x, y), c = bridgeGrid.get(k);
+        if (!c || c[0] < deck.h[i]) bridgeGrid.set(k, [deck.h[i], dx, dy]);
+      }
+    }
+    for (let i = 0; i + 1 < deck.cum.length; i++) {               // dźwigar: betonowy bok pomostu
+      const ax = deck.pts[2 * i], ay = deck.pts[2 * i + 1], bx = deck.pts[2 * i + 2], by = deck.pts[2 * i + 3], h = (deck.h[i] + deck.h[i + 1]) / 2;
+      if (h < 2) continue;
+      const mx = (ax + bx) / 2, my = (ay + by) / 2;
+      rows.push([mx, my, 1e3, [mx, h - 1.8, -my, Math.atan2(by - ay, bx - ax), Math.hypot(bx - ax, by - ay) + .4, 1.8, ROAD_HW[bk] * 2 + .6, 8, .66, .65, .62, 0]]);
+    }
+    for (let d = ramp + 8; d <= L - ramp - 8; d += 25) {
+      pointAt(deck, d, PB); const h = H - .3;
+      rows.push([PB.x, PB.y, 1e3, [PB.x, 0, -PB.y, Math.atan2(PB.dy, PB.dx), 1.6, h, ROAD_HW[bk] * 1.3, 8, .6, .6, .58, 0]]);
+    }
   }
   const boxes = tileInstances(rows, LOD_AREA);
 
@@ -767,7 +847,7 @@ function buildWorld() {
   const polys = M.p.map(([h, k, ...rs]) => {
     const rings = rs.map(undelta), lenO = rings[0].length; let area = ringArea(rings[0]);
     for (let i = 1; i < rings.length; i++) area += ringArea(rings[i]);
-    return { h: h / 2, k, rings, area, x: rings[0][0], y: rings[0][1], lenO };
+    return { h: h / 2, k, rings, area, rank: important(h / 2, k) ? 1e9 : area, x: rings[0][0], y: rings[0][1], lenO };
   });
   let nV = 0, nI = 0;
   for (const P of polys) {
@@ -788,7 +868,7 @@ function buildWorld() {
   for (const P of polys) { const k = tileKey(P.x, P.y); let t = meshTiles.get(k); if (!t) meshTiles.set(k, t = { ...tileRange(P.x, P.y), list: [] }); t.list.push(P); }
   const tilesM = [];
   for (const t of meshTiles.values()) {
-    t.list.sort((a, b) => b.area - a.area);
+    t.list.sort((a, b) => b.rank - a.rank);
     const off = ii, lod = [0, 0, 0];
     for (const P of t.list) {
       const seed = Math.abs(Math.round(P.x * 62 + P.y * 2)) % 251, c = wallOf(P.k, seed), { h, k } = P;
@@ -800,7 +880,7 @@ function buildWorld() {
       const base = v, fl = P.flat;
       for (let i = 0; i < fl.length; i += 2) vert(fl[i], h, -fl[i + 1], 0, 1, 0, 0, 0, h, k, seed, c);
       for (const t3 of P.tris) idx[ii++] = base + t3;
-      const cnt = ii - off; lod[0] = cnt; if (P.area >= LOD_AREA[0]) lod[1] = cnt; if (P.area >= LOD_AREA[1]) lod[2] = cnt;
+      const cnt = ii - off; lod[0] = cnt; if (P.rank >= LOD_AREA[0]) lod[1] = cnt; if (P.rank >= LOD_AREA[1]) lod[2] = cnt;
     }
     tilesM.push({ x0: t.x0, x1: t.x1, z0: t.z0, z1: t.z1, off, lod });
   }
@@ -845,14 +925,16 @@ function buildWorld() {
   }
 
   const lineVao = (lines, hw, px, maxHalf, mode) => {
-    const g = stripLines(lines.map(lineOf)), { vao } = vaoFrom(g, [[0, 4, 6, 0], [1, 2, 6, 4]]);
-    return { vao, count: g.length / 6, hw, px, maxHalf, mode };
+    const g = stripLines(lines.map(l => l.h ? l : lineOf(l))), { vao } = vaoFrom(g, STRIP);
+    return { vao, count: g.length / 7, hw, px, maxHalf, mode };
   };
   const landVao = vaoFrom(landData, [[0, 2, 4, 0], [1, 2, 4, 2]]);
   const counts = { buildings: b.x.length + M.p.length, trees: treeRows.length - tr.length / 2 };
   WORLD = { counts, boxes, trees: tileInstances(treeRows, LOD_TREE), mesh: { vao: meshVao, tiles: tilesM }, land: { vao: landVao.vao, count: nT },
     waterLines: [lineVao(M.w[1], 1.2, .5, 2600, 4), lineVao(M.w[0], 5, .9, 1e9, 4)],
-    roads: [lineVao(M.r[3], 2.4, 0, 1400, 0), lineVao(M.r[2], 3.8, .6, 3600, 0), lineVao(M.r[4], 2.6, .7, 1e9, 3), lineVao(M.r[1], 5.5, .8, 1e9, 0), lineVao(M.r[0], 8, 1, 1e9, 0)] };
+    roads: [lineVao(M.r[3].concat(flatBridges[3]), 2.4, 0, 1400, 0), lineVao(M.r[2].concat(flatBridges[2]), 3.8, .6, 3600, 0), lineVao(M.r[4].concat(flatBridges[4]), 2.6, .7, 1e9, 3),
+      lineVao(M.r[1].concat(flatBridges[1]), 5.5, .8, 1e9, 0), lineVao(M.r[0].concat(flatBridges[0]), 8, 1, 1e9, 0)],
+    bridges: [[3, 2.4, 0, 1400, 0], [2, 3.8, .6, 3600, 0], [4, 2.6, .7, 1e9, 3], [1, 5.5, .8, 1e9, 0], [0, 8, 1, 1e9, 0]].filter(([bk]) => decks[bk].length).map(([bk, ...a]) => lineVao(decks[bk], ...a)) };
   delete D.map;
 }
 function drawMesh(level, v) {
@@ -934,7 +1016,8 @@ function computeBuses(ms) {
     else if (tt < tr.start || tt > tr.end) continue;
     const st = tripDist(tr, tt - delay);
     pointAt(S.shapes[tr.shape], st.d, pt);
-    out.push({ ti, x: pt.x + pt.dy * 2.2, y: pt.y - pt.dx * 2.2, dx: pt.dx, dy: pt.dy, live: !!lv, delay, k: st.k, at: st.at, d: st.d, tt });
+    const x = pt.x + pt.dy * 2.2, y = pt.y - pt.dx * 2.2;
+    out.push({ ti, x, y, h: bridgeAt(x, y, pt.dx, pt.dy), dx: pt.dx, dy: pt.dy, live: !!lv, delay, k: st.k, at: st.at, d: st.d, tt });
   }
   if (liveFresh) for (const v of live.extra) out.push({ ti: -1, x: v.x, y: v.y, dx: Math.cos(v.a), dy: Math.sin(v.a), live: true, label: v.label });
   return { buses: out, w, fallback: today.fallback };
@@ -951,7 +1034,7 @@ function fillDyn() {
     const sel = (b.ti === selTrip && selTrip >= 0) || (selRoute >= 0 && tr && tr.route === selRoute) || planTrips.has(b.ti);
     const s = busScale();
     const c = dim ? [140, 140, 150] : col;
-    dyn.set([b.x, 0.15, -b.y, Math.atan2(b.dy, b.dx), 12 * s, 3.1 * s, 2.6 * s, sel ? 5 : 4, c[0] / 255, c[1] / 255, c[2] / 255, 0], o); o += 12;
+    dyn.set([b.x, 0.15 + (b.h || 0), -b.y, Math.atan2(b.dy, b.dx), 12 * s, 3.1 * s, 2.6 * s, sel ? 5 : 4, c[0] / 255, c[1] / 255, c[2] / 255, 0], o); o += 12;
   }
   if (selStop >= 0) { const [x, y] = D.stops[selStop]; dyn.set([x, 0, -y, 0, 5, 7, 5, 6, 1, 1, 1, 0], o); o += 12; }
   for (const si of planStops()) { const [x, y] = D.stops[si]; dyn.set([x, 0, -y, 0, 4, 9, 4, 6, 1, 1, 1, 0], o); o += 12; }
@@ -966,7 +1049,7 @@ function setHighlight() {
   if (hlGeo) { gl.deleteVertexArray(hlGeo.vao); gl.deleteBuffer(hlGeo.buf); hlGeo = null; }
   if (!shapes.length) return;
   const g = stripGeo(shapes);
-  hlGeo = vaoFrom(g, [[0, 4, 6, 0], [1, 2, 6, 4]]); hlGeo.count = g.length / 6;
+  hlGeo = vaoFrom(g, STRIP); hlGeo.count = g.length / 7;
 }
 
 /* ======================= RENDER ======================= */
@@ -999,7 +1082,7 @@ function render(now) {
   }
   common(roadP);
   const drawLine = L => { if (cam.half > L.maxHalf) return; gl.uniform1i(roadP.u.uMode, L.mode); gl.uniform1f(roadP.u.uY, .04); gl.uniform1f(roadP.u.uHW, Math.max(L.hw, texel * L.px)); gl.bindVertexArray(L.vao); gl.drawArrays(gl.TRIANGLES, 0, L.count); };
-  if (WORLD) { WORLD.waterLines.forEach(drawLine); WORLD.roads.forEach(drawLine); }
+  if (WORLD) { WORLD.waterLines.forEach(drawLine); WORLD.roads.forEach(drawLine); WORLD.bridges.forEach(drawLine); }
   else { gl.uniform1i(roadP.u.uMode, 0); gl.uniform1f(roadP.u.uY, .04); gl.uniform1f(roadP.u.uHW, Math.max(4.5, texel * .9)); gl.bindVertexArray(roadV.vao); gl.drawArrays(gl.TRIANGLES, 0, roadCount); }
   if (hlGeo) {
     const c = D.routes[selTrip >= 0 ? S.trips[selTrip].route : selRoute].c;
@@ -1046,7 +1129,7 @@ function updateBadges() {
     if (b.ti < 0) continue;
     const tr = S.trips[b.ti];
     const isSel = b.ti === selTrip || (plan.sel >= 0 && plan.options[plan.sel].legs.some(l => l.ti === b.ti)), inRoute = selRoute >= 0 && tr.route === selRoute;
-    const [sx, sy] = worldToScreen(b.x, busScale() * 3.1, -b.y);   // tuż nad dachem
+    const [sx, sy] = worldToScreen(b.x, (b.h || 0) + busScale() * 3.1, -b.y);   // tuż nad dachem
     if (sx < -30 || sy < -30 || sx > innerWidth + 30 || sy > innerHeight + 30) continue;
     if (n >= 600) break;
     let el = badgePool[n]; if (!el) { el = document.createElement('div'); el.className = 'badge'; host.appendChild(el); badgePool.push(el); }
@@ -1837,20 +1920,10 @@ function reconstruct(rounds, k, egress, t0, fromP, toP) {
 
 /* ---- podgląd wariantu na mapie ---- */
 function geoFromPolys(polys) {
-  let segs = 0; for (const p of polys) segs += Math.max(0, p.length / 2 - 1);
-  const out = new Float32Array(segs * 36); let o = 0;
-  for (const pts of polys) {
-    let acc = 0;
-    for (let i = 0; i + 3 < pts.length; i += 2) {
-      const ax = pts[i], ay = pts[i + 1], bx = pts[i + 2], by = pts[i + 3];
-      const L = Math.hypot(bx - ax, by - ay) || 1, dx = (bx - ax) / L, dy = (by - ay) / L, e = .9;
-      const A = [ax, ay, -dx * e, -dy * e, acc], B = [bx, by, dx * e, dy * e, acc + L]; acc += L;
-      for (const [P, side] of [[A, 1], [A, -1], [B, -1], [A, 1], [B, -1], [B, 1]]) {
-        out[o++] = P[0]; out[o++] = -P[1]; out[o++] = P[2] - dy * side; out[o++] = -(P[3] + dx * side); out[o++] = side; out[o++] = P[4];
-      }
-    }
-  }
-  return out;
+  return stripLines(polys.filter(p => p.length >= 4).map(p => {
+    const cum = [0]; for (let i = 2; i < p.length; i += 2) cum.push(cum[cum.length - 1] + Math.hypot(p[i] - p[i - 2], p[i + 1] - p[i - 1]));
+    return onBridges({ pts: p, cum });
+  }));
 }
 function shapeSlice(si, d0, d1) {
   const { pts, cum } = S.shapes[si], out = [], P = {};
@@ -1867,8 +1940,8 @@ function setPlanGeo() {
   for (const g of plan.geo) { gl.deleteVertexArray(g.vao); gl.deleteBuffer(g.buf); }
   plan.geo = []; if (!o) return;
   for (const L of o.legs) {
-    const g = geoFromPolys([legPoly(L)]), v = vaoFrom(g, [[0, 4, 6, 0], [1, 2, 6, 4]]);
-    plan.geo.push({ ...v, count: g.length / 6, mode: L.type === 'ride' ? 1 : 2, color: L.type === 'ride' ? D.routes[L.route].c : [255, 255, 255] });
+    const g = geoFromPolys([legPoly(L)]), v = vaoFrom(g, STRIP);
+    plan.geo.push({ ...v, count: g.length / 7, mode: L.type === 'ride' ? 1 : 2, color: L.type === 'ride' ? D.routes[L.route].c : [255, 255, 255] });
   }
 }
 function planStops() {
@@ -2024,7 +2097,7 @@ async function main() {
   dynBox = boxVAO(dyn, true);
   setProgress(.92, 'Rysowanie podpisów…'); await buildAtlas();
   const E = 40000; groundV = vaoFrom(new Float32Array([-E, -E, E, -E, E, E, -E, -E, E, E, -E, E]), [[0, 2, 2, 0]]);
-  if (!WORLD) { const rg = stripGeo(S.shapes.map((_, i) => i)); roadV = vaoFrom(rg, [[0, 4, 6, 0], [1, 2, 6, 4]]); roadCount = rg.length / 6; }
+  if (!WORLD) { const rg = stripGeo(S.shapes.map((_, i) => i)); roadV = vaoFrom(rg, STRIP); roadCount = rg.length / 7; }
 
   // UI: linie, info
   $('#lineGrid').innerHTML = D.routes.map((r, i) => `<span class="chip" data-r="${i}" style="background:${rgbCss(r.c)}" title="${esc(r.name)}">${esc(r.n)}</span>`).join('');
