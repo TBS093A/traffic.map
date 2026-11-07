@@ -1301,7 +1301,7 @@ function pick(px, py) {
   // wygrywa najbliższy cel: autobus (środek pudła) albo przystanek (kropka na dachu wiaty lub sama wiata)
   let bestB = 30, bt = -1, bestS = 34, bs = -1;
   for (const b of buses) { if (b.ti < 0) continue; const [sx, sy] = worldToScreen(b.x, (b.h || 0) + busScale() * 1.5, -b.y); const d = Math.hypot(sx - px, sy - py); if (d < bestB) { bestB = d; bt = b.ti; } }
-  if (cam.half < 2600) {
+  {
     const roof = stopRoofY(cam.half);
     D.stops.forEach(([x, y], i) => {
       const [sx, sy] = worldToScreen(x, roof, -y), [gx, gy] = worldToScreen(x, roof / 2, -y);
@@ -1444,7 +1444,7 @@ $('#liveGo').onclick = () => { live.url = $('#liveUrl').value.trim(); store.set(
 // czyta się normalnie z każdej z 4 stron. Gdy coś go zasłania, napis się przyciemnia.
 const norm = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ł/g, 'l');
 const LBL = { tex: null, g: new Map(), cellH: 64, fontPx: 44, pad: 10, vao: null, buf: null, count: 0, key: '', cap: 0,
-  streetH: 22, streetPx: 16, stopPx: 15, discPx: 5 };
+  streetH: 22, streetPx: 16, stopPx: 15, discPx: 14 };
 
 function buildStopGroups() {
   S.groups = []; S.stopGroup = new Int32Array(D.stops.length);
@@ -1559,11 +1559,10 @@ function rebuildLabels() {
     quad(out, mk.x, -mk.y, .7, R, A, r / sq(R[0], R[1]), r / sq(A[0], A[1]), g, mk.tint);
     putText(mk.text, mk.x, mk.y, 15, mk.tint, true, .7);
   }
-  if (cam.half < 1500 || selSet.size) {
-    const dpx = LBL.discPx * (half < 300 ? 1.4 : 1), g = LBL.g.get('\u0001'), roof = stopRoofY(cam.half);
+  {                                             // kropki przystanków widać z każdej odległości
+    const dpx = LBL.discPx * (half < 300 ? 1.3 : 1), g = LBL.g.get('\u0001'), roof = stopRoofY(cam.half);
     const selG = selStop >= 0 ? S.stopGroup[selStop] : -1;
     for (const grp of S.groups) {
-      if (cam.half >= 1500 && !isSel(grp.id)) continue;
       for (const m of grp.members) {
         const [x, y] = D.stops[m], sel = isSel(grp.id) && (grp.id !== selG || selSide < 0 || selSide === m), k = sel ? 1.8 : 1;
         quad(out, x, -y, roof, R, A, dpx * k * wpp / sq(R[0], R[1]), dpx * k * wpp / sq(A[0], A[1]), g, sel ? TSEL : [.45, .72, 1, 2]);

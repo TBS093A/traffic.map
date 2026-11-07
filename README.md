@@ -142,7 +142,7 @@ Bez danych OSM (np. `"map": {"enabled": false}`) strona wraca do zabudowy poglą
   Proporcje liter są korygowane o skrót perspektywy, a napis zawsze czyta się z lewej do prawej.
   Za budynkiem napis się przyciemnia. Rozmieszczenie unika kolizji i jest przeliczane przy zmianie zoomu i obrocie.
 - **Przystanki:** przy każdym słupku stoi wiata (dach, szklana ściana, żółto-zielony znak), z daleka powiększona,
-  a na jej dachu kropka. Jeden podpis na grupę słupków o tej samej nazwie, zawsze w pełni widoczny, także za budynkiem.
+  a na jej dachu duża kropka, widoczna i klikalna przy każdym zoomie. Jeden podpis na grupę słupków o tej samej nazwie, zawsze w pełni widoczny, także za budynkiem.
   Tablica odjazdów łączy wszystkie słupki grupy.
 - **Szukajka** (🔍 albo `/`): linie po numerze lub nazwie trasy, przystanki po nazwie,
   bez względu na polskie znaki.
