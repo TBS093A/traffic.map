@@ -1,0 +1,4 @@
+work/
+dist/
+pipeline.json
+__pycache__/

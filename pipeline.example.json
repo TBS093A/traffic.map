@@ -1,0 +1,29 @@
+{
+  "sources": [
+    {
+      "name": "kmrzeszow",
+      "url": "https://kmrzeszow.live/gtfs/latest.zip"
+    },
+    {
+      "name": "mkuran",
+      "url": "https://mkuran.pl/gtfs/rzeszow.zip"
+    }
+  ],
+  "work_dir": "work",
+  "out_dir": "dist",
+  "keep_archives": 14,
+  "min_routes": 20,
+  "min_trips": 1000,
+  "post_build": "",
+  "addresses": {
+    "enabled": true,
+    "url": "https://overpass-api.de/api/interpreter",
+    "bbox": [
+      49.9,
+      21.78,
+      50.14,
+      22.26
+    ],
+    "max_age_days": 14
+  }
+}
