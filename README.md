@@ -3,6 +3,24 @@
 Izometryczna mapa pixel-art komunikacji miejskiej w Rzeszowie (WebGL 2, bez bibliotek)
 oraz pipeline, który cyklicznie pobiera aktualny rozkład GTFS i przebudowuje stronę.
 
+![Mapa Rzeszowa w dzień: układ tras autobusowych z podpisami ulic](docs/screenshots/miasto-dzien.png)
+
+## Screeny
+| | |
+|---|---|
+| ![Centrum miasta nocą, z oświetlonymi oknami i autobusami na trasach](docs/screenshots/miasto-noc.png) | ![Podświetlona trasa linii 17 z dwoma autobusami w drodze](docs/screenshots/linia.png) |
+| **Noc:** światła w oknach i autobusy według rozkładu | **Linia:** trasa i autobusy wybranej linii |
+| ![Zbliżenie na zabudowę z tablicą odjazdów przystanku Rejtana / Krzyżanowskiego](docs/screenshots/przystanek.png) | ![Siatka numerów wszystkich linii ZTM](docs/screenshots/lista-linii.png) |
+| **Przystanek:** tablica odjazdów | **Linie:** lista wszystkich linii ZTM |
+| ![Planer z połączeniem z ul. Lwowskiej 60 na Krakowską 20](docs/screenshots/planer.png) | ![Wybrane połączenie narysowane na mapie, z rozpisanymi odcinkami](docs/screenshots/planer-trasa.png) |
+| **Planer:** połączenia od adresu do adresu | **Trasa:** wybrany wariant na mapie |
+
+<img src="docs/screenshots/mobile.png" alt="Widok mapy na telefonie" width="260">
+
+**Telefon:** ten sam widok na wąskim ekranie.
+
+Screeny pokazują rozkład z 7 listopada 2026. Budynki i zieleń są poglądowe (zob. [Ograniczenia](#ograniczenia)).
+
 ## Pliki
 | Plik | Co robi |
 |---|---|
@@ -13,12 +31,13 @@ oraz pipeline, który cyklicznie pobiera aktualny rozkład GTFS i przebudowuje s
 | `build.py` | wkleja dane (gzip + base64) do szablonu strony |
 | `index.src.html` | szablon strony: renderer, UI, logika rozkładu |
 | `proxy.mjs` | proxy GTFS-Realtime → JSON i serwer strony (Node 18+, bez zależności) |
+| `docs/screenshots/` | screeny używane w tym README |
 
 Wymagania: Python 3.9+ (tylko biblioteka standardowa) i, do pozycji na żywo, Node 18+.
 
 ## Szybki start
 ```sh
-cd rzeszow-w-pikselach
+cd traffic.map
 python3 pipeline.py -v          # pierwszy build → dist/index.html
 ```
 `dist/index.html` to samodzielny plik: można go otworzyć w przeglądarce albo wrzucić na hosting.
@@ -32,7 +51,7 @@ dlatego uruchamiaj go co najmniej raz dziennie. Rozsądnie jest co godzinę:
 crontab -e
 ```
 ```
-17 * * * * /ścieżka/do/rzeszow-w-pikselach/run.sh >> /ścieżka/do/rzeszow-w-pikselach/work/cron.log 2>&1
+17 * * * * /ścieżka/do/traffic.map/run.sh >> /ścieżka/do/traffic.map/work/cron.log 2>&1
 ```
 Na standardowe wyjście trafiają tylko ostrzeżenia i błędy. Pełny log jest w `work/pipeline.log`
 (rotacja 3 × 1 MB).
@@ -42,7 +61,7 @@ macOS: jeśli projekt leży w Dokumentach, na Biurku albo w Pobranych, nadaj `/u
 
 ## Windows (Harmonogram zadań)
 ```bat
-schtasks /Create /SC HOURLY /MO 1 /TN "RzeszowWPikselach" /TR "py C:\ścieżka\rzeszow-w-pikselach\pipeline.py"
+schtasks /Create /SC HOURLY /MO 1 /TN "RzeszowWPikselach" /TR "py C:\ścieżka\traffic.map\pipeline.py"
 ```
 
 ## Jak działa pipeline
