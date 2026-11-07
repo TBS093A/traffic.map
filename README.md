@@ -144,6 +144,8 @@ Bez danych OSM (np. `"map": {"enabled": false}`) strona wraca do zabudowy poglą
 - **Przystanki:** przy każdym słupku stoi wiata (dach, szklana ściana, żółto-zielony znak), z daleka powiększona,
   a na jej dachu duża kropka, widoczna i klikalna przy każdym zoomie. Jeden podpis na grupę słupków o tej samej nazwie, zawsze w pełni widoczny, także za budynkiem.
   Tablica odjazdów łączy wszystkie słupki grupy.
+- **Zaznaczony autobus lub linia:** jego przystanki są wyróżnione i podpisane przy każdym zoomie, pozostałe przygaszone.
+  Podpis przystanku klika się tak samo jak kropka. Z daleka kropki są mniejsze, żeby nie zasłaniały mapy.
 - **Szukajka** (🔍 albo `/`): linie po numerze lub nazwie trasy, przystanki po nazwie,
   bez względu na polskie znaki.
 

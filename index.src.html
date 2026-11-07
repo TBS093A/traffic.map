@@ -55,9 +55,9 @@ button.on{background:var(--acc);color:#141622;border-color:var(--acc)}
 input[type=text],input[type=time]{font:inherit;background:#0f111b;color:var(--fg);border:2px solid var(--line);padding:6px 8px;border-radius:0;width:100%}
 .note{color:var(--mut);font-size:12px;margin:6px 0 0}
 #badges{position:fixed;inset:0;pointer-events:none;overflow:hidden}
-.badge{position:absolute;transform:translate(-50%,calc(-100% - 2px));font-family:var(--px);font-weight:600;font-size:15px;line-height:19px;padding:0 5px;color:#141622;border:2px solid rgba(0,0,0,.55);white-space:nowrap}
-.badge.far{font-size:13px;line-height:16px;padding:0 3px}
-.badge.sel{font-size:18px;line-height:23px;outline:2px solid #fff}
+.badge{position:absolute;transform:translate(-50%,-80%);font-family:var(--px);font-weight:600;font-size:18px;line-height:22px;padding:0 6px;color:#141622;border:2px solid rgba(0,0,0,.55);white-space:nowrap}
+.badge.far{font-size:16px;line-height:19px;padding:0 4px}
+.badge.sel{font-size:21px;line-height:26px;outline:2px solid #fff}
 #attr{position:fixed;right:10px;left:70px;bottom:4px;font-size:10px;color:rgba(238,240,247,.6);pointer-events:none;text-shadow:0 1px 0 #000;text-align:right}
 #hint{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);padding:8px 12px;font-size:13px;color:var(--mut);transition:opacity .6s;pointer-events:none;white-space:nowrap}
 #loading{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:var(--bg);z-index:10;font-family:var(--px);font-size:20px}
@@ -1309,6 +1309,10 @@ function pick(px, py) {
       if (d < bestS) { bestS = d; bs = i; }
     });
   }
+  for (const h of LBL.hits || []) {            // podpis przystanku: trafienie w prostokąt tekstu
+    const [sx, sy] = worldToScreen(h.x, h.yH, -h.y);
+    if (px >= sx + h.s0 - 4 && px <= sx + h.s0 + h.w + 4 && Math.abs(py - sy) <= h.h * .8) { select({ stop: h.stop, route: -1 }); return; }
+  }
   if (bs >= 0 && (bt < 0 || bestS <= bestB)) { select({ stop: bs, route: -1 }); return; }
   if (bt >= 0) { select({ trip: bt }); return; }
   if (selTrip >= 0 || selStop >= 0) select({ route: selRoute });
@@ -1519,6 +1523,14 @@ void main(){
   o=vec4(mix(vec3(.05,.06,.1), vT.rgb, smoothstep(.2,.62,c.r)), smoothstep(.04,.45,c.a)*min(vT.a,1.)*occ);
 }`);
 
+// przystanki zaznaczonego kursu albo całej zaznaczonej linii (null, gdy nic nie zaznaczono)
+const routeStopSets = new Map();
+function litStops() {
+  if (selTrip >= 0) return new Set(S.trips[selTrip].stops);
+  if (selRoute < 0) return null;
+  if (!routeStopSets.has(selRoute)) { const set = new Set(); for (const t of S.trips) if (t.route === selRoute) for (const m of t.stops) set.add(m); routeStopSets.set(selRoute, set); }
+  return routeStopSets.get(selRoute);
+}
 function rebuildLabels() {
   const bucket = Math.round(Math.log2(cam.half) * 2), half = Math.pow(2, bucket / 2);
   const yaw = cam.yawT, se = Math.sin(cam.elev), ce = Math.cos(cam.elev), sy = Math.sin(yaw), cy = Math.cos(yaw);
@@ -1526,7 +1538,7 @@ function rebuildLabels() {
   const wpp = 2 * half / innerHeight;                     // metry płaszczyzny widoku na 1 px CSS
   const sq = (ux, uz) => Math.max(.2, Math.hypot(ux * R[0] + uz * R[1], (ux * A[0] + uz * A[1]) * se)); // skrót perspektywy
   const view = (x, y, z) => [x * R[0] + z * R[1], x * U[0] + y * U[1] + z * U[2]];
-  const out = []; const grid = new Map(); const cell = 40 * wpp;
+  const out = []; const grid = new Map(); const cell = 40 * wpp; LBL.hits = [];
   const gkey = (a, b) => a * 73856093 ^ b * 19349663;
   const hits = circles => { for (const [cx, cy2, r] of circles) { const gx = Math.floor(cx / cell), gy = Math.floor(cy2 / cell);
     for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const l = grid.get(gkey(gx + i, gy + j)); if (l) for (const [x2, y2, r2] of l) if (Math.hypot(cx - x2, cy2 - y2) < r + r2) return true; } } return false; };
@@ -1541,10 +1553,12 @@ function rebuildLabels() {
   const TS = [.96, .94, .88, 1], TP = [.68, .84, 1, 2], TSEL = [1, .85, .35, 2], TSG = [.96, .94, .88, 2];   // alfa 2: bez przyciemniania za zabudową
 
   // --- przystanki: kropki (każdy słupek); podpis na grupę, a z bliska osobno dla każdej strony ruchu
-  const putText = (text, x, y, px, tint, force, yH = .6, center = false) => {
+  const putText = (text, x, y, px, tint, force, yH = .6, center = false, stop = -1) => {
     const k = px / LBL.fontPx, hh = LBL.cellH * k * wpp / sq(A[0], A[1]) / 2;
     const glyphs = [...text].map(c => LBL.g.get(c) || LBL.g.get(' '));
-    let s = center ? -glyphs.reduce((a, g) => a + g.adv, 0) * k * wpp / 2 : (LBL.discPx + 5) * wpp;
+    const wPx = glyphs.reduce((a, g) => a + g.adv, 0) * k;
+    let s = center ? -wPx * wpp / 2 : (LBL.discPx + 5) * wpp;
+    const s0 = s / wpp;
     const q = [], circ = [];
     for (const g of glyphs) {
       const adv = g.adv * k * wpp, cx = x + R[0] * (s + adv / 2), cz = -y + R[1] * (s + adv / 2);
@@ -1552,37 +1566,50 @@ function rebuildLabels() {
       const v = view(cx, yH, cz); circ.push([v[0], v[1], px * wpp * .55]); s += adv;
     }
     if (!force && hits(circ)) return false;
-    add(circ); for (const v of q) out.push(v); return true;
+    add(circ); for (const v of q) out.push(v);
+    if (stop >= 0) LBL.hits.push({ stop, x, y, yH, s0, w: wPx, h: px });   // podpis przystanku klika się jak kropka
+    return true;
   };
   for (const mk of planMarkers()) {
     const g = LBL.g.get('\u0001'), r = 9 * wpp;
     quad(out, mk.x, -mk.y, .7, R, A, r / sq(R[0], R[1]), r / sq(A[0], A[1]), g, mk.tint);
     putText(mk.text, mk.x, mk.y, 15, mk.tint, true, .7);
   }
-  {                                             // kropki przystanków widać z każdej odległości
-    const dpx = LBL.discPx * (half < 300 ? 1.3 : 1), g = LBL.g.get('\u0001'), roof = stopRoofY(cam.half);
+  {                                             // kropki przystanków widać z każdej odległości, z daleka mniejsze
+    const roof = stopRoofY(cam.half), g = LBL.g.get('\u0001');
+    const dpx = LBL.discPx * (half < 300 ? 1.3 : cam.half > 2600 ? .45 : cam.half > 1500 ? .65 : 1);
     const selG = selStop >= 0 ? S.stopGroup[selStop] : -1;
+    const lit = litStops();                     // przystanki zaznaczonego autobusu / linii: reszta przygaszona
+    const TDIM = [.45, .72, 1, .22], TDOT = [.45, .72, 1, 2];
     for (const grp of S.groups) {
       for (const m of grp.members) {
-        const [x, y] = D.stops[m], sel = isSel(grp.id) && (grp.id !== selG || selSide < 0 || selSide === m), k = sel ? 1.8 : 1;
-        quad(out, x, -y, roof, R, A, dpx * k * wpp / sq(R[0], R[1]), dpx * k * wpp / sq(A[0], A[1]), g, sel ? TSEL : [.45, .72, 1, 2]);
+        const [x, y] = D.stops[m], sel = isSel(grp.id) && (grp.id !== selG || selSide < 0 || selSide === m);
+        const on = lit && lit.has(m), k = sel ? 1.8 : on ? Math.max(1, .9 / (dpx / LBL.discPx)) : lit ? .7 : 1;
+        quad(out, x, -y, roof, R, A, dpx * k * wpp / sq(R[0], R[1]), dpx * k * wpp / sq(A[0], A[1]), g, sel ? TSEL : lit && !on ? TDIM : TDOT);
+      }
+    }
+    let n = 0;
+    if (lit) {                                  // podpisy tylko przystanków zaznaczonego kursu, przy każdym zoomie
+      for (const grp of S.groups) {
+        const m = grp.members.find(mm => lit.has(mm)); if (m === undefined) continue;
+        putText(grp.name, D.stops[m][0], D.stops[m][1], LBL.stopPx, isSel(grp.id) ? TSEL : TP, isSel(grp.id), roof, false, m);
       }
     }
     const order = [...S.groups].sort((a, b) => isSel(b.id) - isSel(a.id) || b.trips - a.trips);
-    let n = 0;
     const close = cam.half < 230;
     for (const grp of order) {
       const sel = isSel(grp.id);
+      if (lit && !sel) continue;
       if (!(cam.half < 520 || sel)) break;
       if (n > 300) break;
-      if ((close || (sel && cam.half < 700)) && grp.members.length > 1) {   // z bliska: każda strona ruchu osobno
+      if ((close || (sel && cam.half < 700)) && grp.members.length > 1) {   // z bliska: nazwa grupy, pod nią każda strona ruchu
+        putText(grp.name, grp.x, grp.y, LBL.stopPx + 1, sel ? TSEL : TSG, sel, roof + 6, true, grp.members[0]);
         for (const m of grp.members) {
           const sd = S.side[m], t = (sd.plat ? sd.plat + ' ' : '') + (sd.arrOnly ? 'wysiadka' : '→ ' + (sd.heads[0] || ''));
           const on = sel && (grp.id !== selG || selSide < 0 || selSide === m);
-          if (putText(t.length > 30 ? t.slice(0, 29) + '…' : t, D.stops[m][0], D.stops[m][1], LBL.stopPx - 1, on ? TSEL : TP, sel, roof)) n++;
+          if (putText(t.length > 30 ? t.slice(0, 29) + '…' : t, D.stops[m][0], D.stops[m][1], LBL.stopPx - 1, on ? TSEL : TP, sel, roof, false, m)) n++;
         }
-        putText(grp.name, grp.x, grp.y, LBL.stopPx + 1, sel ? TSEL : TSG, sel, roof + 6, true);
-      } else if (putText(grp.name, grp.x, grp.y, LBL.stopPx, sel ? TSEL : TP, sel, roof)) n++;
+      } else if (putText(grp.name, grp.x, grp.y, LBL.stopPx, sel ? TSEL : TP, sel, roof, false, grp.members[0])) n++;
     }
   }
 
@@ -1633,7 +1660,7 @@ function rebuildLabels() {
 
 function drawLabels() {
   if (!LBL.tex) return;
-  const key = Math.round(Math.log2(cam.half) * 2) + '|' + Math.round(cam.yawT / (Math.PI / 2)) + '|' + (selStop >= 0 ? S.stopGroup[selStop] : -1) + '|' + innerWidth + 'x' + innerHeight + '|' + opt.lbl + '|' + plan.key + '|' + selSide + '|' + (plan.me ? plan.me.x : '');
+  const key = Math.round(Math.log2(cam.half) * 2) + '|' + selTrip + '|' + selRoute + '|' + Math.round(cam.yawT / (Math.PI / 2)) + '|' + (selStop >= 0 ? S.stopGroup[selStop] : -1) + '|' + innerWidth + 'x' + innerHeight + '|' + opt.lbl + '|' + plan.key + '|' + selSide + '|' + (plan.me ? plan.me.x : '');
   if (key !== LBL.key) { LBL.key = key; if (opt.lbl) rebuildLabels(); else LBL.count = 0; }
   if (!LBL.count) return;
   gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.disable(gl.DEPTH_TEST);
