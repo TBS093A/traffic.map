@@ -56,6 +56,7 @@ input[type=text],input[type=time]{font:inherit;background:#0f111b;color:var(--fg
 .note{color:var(--mut);font-size:12px;margin:6px 0 0}
 #badges{position:fixed;inset:0;pointer-events:none;overflow:hidden}
 .badge{position:absolute;transform:translate(-50%,-100%);font-family:var(--px);font-weight:600;font-size:12px;line-height:16px;padding:0 4px;color:#141622;border:2px solid rgba(0,0,0,.55);white-space:nowrap}
+.badge.far{font-size:10px;line-height:12px;padding:0 2px;border-width:1px}
 .badge.sel{font-size:15px;line-height:20px;outline:2px solid #fff}
 #attr{position:fixed;right:10px;left:70px;bottom:4px;font-size:10px;color:rgba(238,240,247,.6);pointer-events:none;text-shadow:0 1px 0 #000;text-align:right}
 #hint{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);padding:8px 12px;font-size:13px;color:var(--mut);transition:opacity .6s;pointer-events:none;white-space:nowrap}
@@ -1039,22 +1040,20 @@ function render(now) {
 const badgePool = [];
 function updateBadges() {
   const host = $('#badges'); let n = 0;
-  const showAll = cam.half < 650;
+  const far = cam.half > 1500;                           // z daleka mniejsze, żeby się nie zlewały
   for (const b of buses) {
     if (b.ti < 0) continue;
     const tr = S.trips[b.ti];
     const isSel = b.ti === selTrip || (plan.sel >= 0 && plan.options[plan.sel].legs.some(l => l.ti === b.ti)), inRoute = selRoute >= 0 && tr.route === selRoute;
-    if (!(showAll || isSel || inRoute)) continue;
-    if (selRoute >= 0 && !inRoute && !isSel && !showAll) continue;
     const [sx, sy] = worldToScreen(b.x, 9, -b.y);
     if (sx < -30 || sy < -30 || sx > innerWidth + 30 || sy > innerHeight + 30) continue;
-    if (n >= 150) break;
+    if (n >= 600) break;
     let el = badgePool[n]; if (!el) { el = document.createElement('div'); el.className = 'badge'; host.appendChild(el); badgePool.push(el); }
     const c = D.routes[tr.route].c, txt = D.routes[tr.route].n;
     if (el._t !== txt) { el.textContent = txt; el._t = txt; }
     const bgc = (selRoute >= 0 && !inRoute && !isSel) ? '#8c8c96' : rgbCss(c);
     if (el._c !== bgc) { el.style.background = bgc; el._c = bgc; }
-    el.classList.toggle('sel', isSel);
+    el.classList.toggle('sel', isSel); el.classList.toggle('far', far && !isSel && !inRoute);
     el.style.left = sx + 'px'; el.style.top = sy + 'px'; el.style.display = '';
     n++;
   }
@@ -1475,8 +1474,8 @@ function rebuildLabels() {
     }
   }
 
-  // --- ulice: tekst wzdłuż trasy, nad zabudową
-  if (cam.half < 2200) {
+  // --- ulice: tekst wzdłuż trasy, nad zabudową (przy oddaleniu zostają tylko te, które się mieszczą)
+  {
     const k = LBL.streetPx / LBL.fontPx, P = {}, Hs = LBL.streetH;
     const tanAt = (sh, d, span) => { pointAt(sh, d - span, P); const ax = P.x, ay = P.y; pointAt(sh, d + span, P); const dx = P.x - ax, dy = P.y - ay, L = Math.hypot(dx, dy) || 1; return [dx / L, -dy / L]; };
     for (const [name, runs] of D.streets || []) {
