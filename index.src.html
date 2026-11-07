@@ -55,9 +55,9 @@ button.on{background:var(--acc);color:#141622;border-color:var(--acc)}
 input[type=text],input[type=time]{font:inherit;background:#0f111b;color:var(--fg);border:2px solid var(--line);padding:6px 8px;border-radius:0;width:100%}
 .note{color:var(--mut);font-size:12px;margin:6px 0 0}
 #badges{position:fixed;inset:0;pointer-events:none;overflow:hidden}
-.badge{position:absolute;transform:translate(-50%,-100%);font-family:var(--px);font-weight:600;font-size:12px;line-height:16px;padding:0 4px;color:#141622;border:2px solid rgba(0,0,0,.55);white-space:nowrap}
-.badge.far{font-size:10px;line-height:12px;padding:0 2px;border-width:1px}
-.badge.sel{font-size:15px;line-height:20px;outline:2px solid #fff}
+.badge{position:absolute;transform:translate(-50%,calc(-100% - 2px));font-family:var(--px);font-weight:600;font-size:15px;line-height:19px;padding:0 5px;color:#141622;border:2px solid rgba(0,0,0,.55);white-space:nowrap}
+.badge.far{font-size:13px;line-height:16px;padding:0 3px}
+.badge.sel{font-size:18px;line-height:23px;outline:2px solid #fff}
 #attr{position:fixed;right:10px;left:70px;bottom:4px;font-size:10px;color:rgba(238,240,247,.6);pointer-events:none;text-shadow:0 1px 0 #000;text-align:right}
 #hint{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);padding:8px 12px;font-size:13px;color:var(--mut);transition:opacity .6s;pointer-events:none;white-space:nowrap}
 #loading{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:var(--bg);z-index:10;font-family:var(--px);font-size:20px}
@@ -940,6 +940,7 @@ function computeBuses(ms) {
   return { buses: out, w, fallback: today.fallback };
 }
 
+const busScale = () => cam.half > 1500 ? 2.2 : cam.half > 700 ? 1.5 : 1;   // autobusy rosną przy oddaleniu, żeby było je widać
 function fillDyn() {
   const po = plan.sel >= 0 ? plan.options[plan.sel] : null, planTrips = new Set(po ? po.legs.filter(l => l.type === 'ride').map(l => l.ti) : []);
   let o = 0; const n = Math.min(buses.length, 1100);
@@ -948,7 +949,7 @@ function fillDyn() {
     const col = tr ? D.routes[tr.route].c : [150, 150, 150];
     const dim = selRoute >= 0 && tr && tr.route !== selRoute;
     const sel = (b.ti === selTrip && selTrip >= 0) || (selRoute >= 0 && tr && tr.route === selRoute) || planTrips.has(b.ti);
-    const s = cam.half > 1500 ? 2.2 : cam.half > 700 ? 1.5 : 1;
+    const s = busScale();
     const c = dim ? [140, 140, 150] : col;
     dyn.set([b.x, 0.15, -b.y, Math.atan2(b.dy, b.dx), 12 * s, 3.1 * s, 2.6 * s, sel ? 5 : 4, c[0] / 255, c[1] / 255, c[2] / 255, 0], o); o += 12;
   }
@@ -1045,7 +1046,7 @@ function updateBadges() {
     if (b.ti < 0) continue;
     const tr = S.trips[b.ti];
     const isSel = b.ti === selTrip || (plan.sel >= 0 && plan.options[plan.sel].legs.some(l => l.ti === b.ti)), inRoute = selRoute >= 0 && tr.route === selRoute;
-    const [sx, sy] = worldToScreen(b.x, 9, -b.y);
+    const [sx, sy] = worldToScreen(b.x, busScale() * 3.1, -b.y);   // tuż nad dachem
     if (sx < -30 || sy < -30 || sx > innerWidth + 30 || sy > innerHeight + 30) continue;
     if (n >= 600) break;
     let el = badgePool[n]; if (!el) { el = document.createElement('div'); el.className = 'badge'; host.appendChild(el); badgePool.push(el); }
