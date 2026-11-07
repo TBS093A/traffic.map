@@ -1,13 +1,16 @@
 # Rzeszów w pikselach
 
-Izometryczna mapa pixel-art komunikacji miejskiej w Rzeszowie (WebGL 2, bez bibliotek)
+Izometryczna mapa pixel-art komunikacji miejskiej w Rzeszowie (WebGL 2, bez zależności)
 oraz pipeline, który cyklicznie pobiera aktualny rozkład GTFS i przebudowuje stronę.
+Budynki, woda, teren, drogi i tory pochodzą z OpenStreetMap.
 
-![Mapa Rzeszowa w dzień: układ tras autobusowych z podpisami ulic](docs/screenshots/miasto-dzien.png)
+![Centrum Rzeszowa: prawdziwa zabudowa z OpenStreetMap, ulice i autobusy na trasach](docs/screenshots/centrum.png)
 
 ## Screeny
 | | |
 |---|---|
+| ![Wisłok i dzielnice na wschód od centrum: osiedla, hale i zabudowa jednorodzinna](docs/screenshots/wislok.png) | ![Cały obszar sieci: Rzeszów z Wisłokiem, zalewem i okolicznymi lasami](docs/screenshots/miasto-dzien.png) |
+| **Wisłok:** rzeka, osiedla i hale | **Całość:** miasto, zalew i lasy w okolicy |
 | ![Centrum miasta nocą, z oświetlonymi oknami i autobusami na trasach](docs/screenshots/miasto-noc.png) | ![Podświetlona trasa linii 17 z dwoma autobusami w drodze](docs/screenshots/linia.png) |
 | **Noc:** światła w oknach i autobusy według rozkładu | **Linia:** trasa i autobusy wybranej linii |
 | ![Zbliżenie na zabudowę z tablicą odjazdów przystanku Rejtana / Krzyżanowskiego](docs/screenshots/przystanek.png) | ![Siatka numerów wszystkich linii ZTM](docs/screenshots/lista-linii.png) |
@@ -19,7 +22,7 @@ oraz pipeline, który cyklicznie pobiera aktualny rozkład GTFS i przebudowuje s
 
 **Telefon:** ten sam widok na wąskim ekranie.
 
-Screeny pokazują rozkład z 7 listopada 2026. Budynki i zieleń są poglądowe (zob. [Ograniczenia](#ograniczenia)).
+Screeny pokazują rozkład i dane OSM z 7 listopada 2026.
 
 ## Pliki
 | Plik | Co robi |
@@ -28,8 +31,9 @@ Screeny pokazują rozkład z 7 listopada 2026. Budynki i zieleń są poglądowe 
 | `run.sh` | wrapper dla crona (ustawia katalog roboczy i Pythona) |
 | `pipeline.example.json` | przykładowa konfiguracja — skopiuj do `pipeline.json`, jeśli chcesz coś zmienić |
 | `prep.py` | GTFS → kompaktowy `data.json` (rzutowanie, upraszczanie tras, wzorce kursów) |
+| `osm.py` | warstwy OpenStreetMap → kompaktowa mapa (budynki, teren, woda, drogi, drzewa) |
 | `build.py` | wkleja dane (gzip + base64) do szablonu strony |
-| `index.src.html` | szablon strony: renderer, UI, logika rozkładu |
+| `index.src.html` | szablon strony: renderer, UI, logika rozkładu (z wbudowanym [earcut](https://github.com/mapbox/earcut), ISC) |
 | `proxy.mjs` | proxy GTFS-Realtime → JSON i serwer strony (Node 18+, bez zależności) |
 | `docs/screenshots/` | screeny używane w tym README |
 
@@ -70,8 +74,8 @@ schtasks /Create /SC HOURLY /MO 1 /TN "RzeszowWPikselach" /TR "py C:\ścieżka\t
    Zapasowe źródło jest odpytywane tylko wtedy, gdy główne zawiedzie albo jego rozkład nie obejmuje dziś.
 3. **Weryfikacja paczki.** Sprawdzana jest integralność ZIP, obecność wymaganych plików GTFS
    i zakres dat.
-4. **Wykrywanie zmian.** Build rusza tylko wtedy, gdy zmieniła się paczka albo kod
-   (`index.src.html`, `prep.py`, `build.py`). `--force` wymusza build.
+4. **Wykrywanie zmian.** Build rusza tylko wtedy, gdy zmieniła się paczka, dane OSM albo kod
+   (`index.src.html`, `prep.py`, `osm.py`, `build.py`). `--force` wymusza build.
 5. **Build i walidacja.** Wynik musi mieć minimalną liczbę linii, kursów i przystanków
    oraz niepusty kalendarz.
 6. **Atomowa podmiana.** `dist/index.html` jest podmieniany jednym `rename`, więc nigdy nie ma
@@ -104,9 +108,28 @@ więc po przebudowie przez pipeline wystarczy odświeżyć stronę. W ⚙ Ustawi
 2. Post-processing: kontury z laplasjanu głębi i różnic normalnych, dithering Bayera 4×4,
    kwantyzacja do 32-kolorowej palety, skalowanie metodą najbliższego sąsiada.
 3. Kamera ortograficzna (30°, obrót co 90°) przyciągana do siatki pikseli, więc obraz nie migocze.
-4. Budynki, drzewa, przystanki i autobusy to jeden instancjonowany prostopadłościan.
-   Okna i nocne światła powstają w shaderze.
-5. Drogi to pasy wzdłuż tras GTFS, z szerokością zależną od zoomu.
+4. Prostokątne budynki (ok. 80%), drzewa i autobusy to jeden instancjonowany prostopadłościan.
+   Pozostałe budynki to bryły wyciągnięte z obrysu OSM (triangulacja dachów: earcut).
+   Okna i nocne światła powstają w shaderze, wspólnym dla obu rodzajów budynków.
+5. Teren i woda to płaskie wielokąty rysowane w kolejności klas (woda na wierzchu).
+   Drogi, tory i cieki to pasy z szerokością zależną od klasy i zoomu.
+6. Świat jest podzielony na kafle 1,5 km. Rysowane są tylko kafle w kadrze. W kaflu budynki są
+   posortowane od największych, więc przy oddaleniu rysowany jest tylko początek listy.
+
+## Mapa z OpenStreetMap
+`pipeline.py` pobiera z Overpass API cztery warstwy dla obszaru sieci (`map` w konfiguracji) i trzyma je
+w `work/cache/osm-*.json.gz`. Odświeża je co 14 dni, a każdą warstwę osobno. Gdy pobranie się nie uda, warstwa
+zostaje w poprzedniej kopii, a brakująca jest pobierana przy następnym uruchomieniu. `osm.py` zamienia je na
+kompaktowy format wklejany do strony (ok. 3,6 MB po kompresji, strona ma ok. 6 MB).
+
+| Warstwa | Co z niej powstaje |
+|---|---|
+| budynki | ok. 167 tys. brył. Prostokątne zapisywane jako obrócony prostopadłościan, pozostałe z pełnym obrysem i dziedzińcami |
+| teren | lasy, łąki, pola, ogródki, cmentarze, tereny przemysłowe, parkingi, boiska, woda (Wisłok, zalew, stawy) |
+| drogi | od autostrad po drogi dojazdowe (te ostatnie tylko z bliska) oraz tory kolejowe |
+| drzewa | pojedyncze drzewa (`natural=tree`) w dokładnych pozycjach |
+
+Bez danych OSM (np. `"map": {"enabled": false}`) strona wraca do zabudowy poglądowej, generowanej wzdłuż tras.
 
 ## Podpisy i szukajka
 - **Ulice:** nazwy pochodzą z kolumny `street_name` w `stops.txt`. Odcinek trasy między dwoma
@@ -145,14 +168,19 @@ więc po przebudowie przez pipeline wystarczy odświeżyć stronę. W ⚙ Ustawi
   przeglądarka ją blokuje, wtedy działa „Wskaż na mapie”.
 
 ## Ograniczenia
-- **Budynki i zieleń są poglądowe** (generowane proceduralnie wzdłuż tras). Następny krok:
-  prawdziwa zabudowa z OpenStreetMap (ODbL) albo modeli 3D GUGiK (CC BY 4.0).
-- Drogi pochodzą wyłącznie z tras autobusowych.
+- **Teren jest płaski.** Nie ma modelu wysokości, więc doliny i wzniesienia nie są widoczne.
+- **Wysokości budynków** pochodzą z OSM tylko dla ok. 21% budynków (`height`, `building:levels`).
+  Pozostałe są szacowane z typu i powierzchni. Wszystkie dachy są płaskie, kolor dachu zależy od typu budynku.
+- **Drzewa w lasach** są rozmieszczane w granicach lasów z OSM, nie według rzeczywistych pozycji.
+  Rzeczywiste pozycje mają tylko drzewa oznaczone w OSM pojedynczo.
+- Mapa obejmuje prostokąt sieci ZTM (`bbox`). Poza nim jest tylko trawa.
 - Paczka mkuran.pl (zapas) nie ma brygad, pełnych nazw linii ani nazw ulic (będą tylko podpisy przystanków).
 - Podpisujemy tylko ulice, którymi jeżdżą autobusy i na których są co najmniej dwa kolejne przystanki.
 
 ## Dane
-Źródło: ZTM Rzeszów — https://otwartedane.erzeszow.pl/dataset/rozklady-jazdy-gtfs,
+Mapa i adresy: © współtwórcy OpenStreetMap, licencja ODbL — https://www.openstreetmap.org/copyright.
+
+Rozkład: ZTM Rzeszów — https://otwartedane.erzeszow.pl/dataset/rozklady-jazdy-gtfs,
 w opracowaniu kmrzeszow.live (zapasowo: mkuran.pl). Dane zostały przetworzone.
 Gmina Miasto Rzeszów nie ponosi odpowiedzialności za dostępność, poprawność, aktualność,
 kompletność i jakość przetworzonych danych. Przed publicznym udostępnieniem sprawdź warunki

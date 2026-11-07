@@ -175,7 +175,7 @@ a{color:var(--acc)}
     <label>Kontury</label><div class="seg" data-opt="out"><button data-v="1">wł.</button><button data-v="0">wył.</button></div>
     <label>Pora dnia</label><div class="seg" data-opt="tod"><button data-v="auto">auto</button><button data-v="day">dzień</button><button data-v="night">noc</button></div>
     <label>Podpisy ulic i przystanków</label><div class="seg" data-opt="lbl"><button data-v="1">wł.</button><button data-v="0">wył.</button></div>
-    <label>Budynki poglądowe</label><div class="seg" data-opt="bld"><button data-v="1">wł.</button><button data-v="0">wył.</button></div>
+    <label>Budynki i drzewa</label><div class="seg" data-opt="bld"><button data-v="1">wł.</button><button data-v="0">wył.</button></div>
     <label>Ustaw godzinę</label><div class="seg"><input type="time" id="setTime" step="60" style="width:120px"></div>
   </div>
   <div style="margin-bottom:12px">
@@ -193,6 +193,9 @@ a{color:var(--acc)}
 <div id="loading"><div>RZESZÓW W PIKSELACH</div><div class="bar"><i id="lbar"></i></div><div id="lmsg" style="font-size:14px;color:#9aa2c0">Wczytywanie rozkładu…</div><div id="err"></div></div>
 
 <script id="gtfs" type="application/octet-stream">/*__DATA__*/</script>
+<script>/* earcut 2.2.4 (c) 2016 Mapbox, licencja ISC: https://github.com/mapbox/earcut */
+!function(e){"object"==typeof exports&&"undefined"!=typeof module?module.exports=e():"function"==typeof define&&define.amd?define([],e):("undefined"!=typeof window?window:"undefined"!=typeof global?global:"undefined"!=typeof self?self:this).earcut=e()}(function(){return function r(x,i,u){function f(n,e){if(!i[n]){if(!x[n]){var t="function"==typeof require&&require;if(!e&&t)return t(n,!0);if(o)return o(n,!0);throw(e=new Error("Cannot find module '"+n+"'")).code="MODULE_NOT_FOUND",e}t=i[n]={exports:{}},x[n][0].call(t.exports,function(e){return f(x[n][1][e]||e)},t,t.exports,r,x,i,u)}return i[n].exports}for(var o="function"==typeof require&&require,e=0;e<u.length;e++)f(u[e]);return f}({1:[function(e,n,t){"use strict";function r(e,n,t){t=t||2;var r,x,i,u,f,o=n&&n.length,v=o?n[0]*t:e.length,p=s(e,0,v,t,!0),y=[];if(p&&p.next!==p.prev){if(o&&(p=function(e,n,t,r){var x,i,u,f,o=[];for(x=0,i=n.length;x<i;x++)f=n[x]*r,u=x<i-1?n[x+1]*r:e.length,(f=s(e,f,u,r,!1))===f.next&&(f.steiner=!0),o.push(function(e){var n=e,t=e;for(;(n.x<t.x||n.x===t.x&&n.y<t.y)&&(t=n),n=n.next,n!==e;);return t}(f));for(o.sort(c),x=0;x<o.length;x++)t=function(e,n){var t=function(e,n){var t,r=n,x=e.x,i=e.y,u=-1/0;do{if(i<=r.y&&i>=r.next.y&&r.next.y!==r.y){var f=r.x+(i-r.y)*(r.next.x-r.x)/(r.next.y-r.y);if(f<=x&&u<f&&(u=f,t=r.x<r.next.x?r:r.next,f===x))return t}}while(r=r.next,r!==n);if(!t)return null;var o,v=t,p=t.x,y=t.y,a=1/0;r=t;for(;x>=r.x&&r.x>=p&&x!==r.x&&D(i<y?x:u,i,p,y,i<y?u:x,i,r.x,r.y)&&(o=Math.abs(i-r.y)/(x-r.x),_(r,e)&&(o<a||o===a&&(r.x>t.x||r.x===t.x&&function(e,n){return E(e.prev,e,n.prev)<0&&E(n.next,e,e.next)<0}(t,r)))&&(t=r,a=o)),r=r.next,r!==v;);return t}(e,n);if(!t)return n;n=j(t,e);return q(n,n.next),q(t,t.next)}(o[x],t);return t}(e,n,p,t)),e.length>80*t){for(var a=r=e[0],l=x=e[1],h=t;h<v;h+=t)(i=e[h])<a&&(a=i),(u=e[h+1])<l&&(l=u),r<i&&(r=i),x<u&&(x=u);f=0!==(f=Math.max(r-a,x-l))?32767/f:0}O(p,y,t,a,l,f,0)}return y}function s(e,n,t,r,x){var i,u;if(x===0<d(e,n,t,r))for(i=n;i<t;i+=r)u=f(i,e[i],e[i+1],u);else for(i=t-r;n<=i;i-=r)u=f(i,e[i],e[i+1],u);return u&&N(u,u.next)&&(C(u),u=u.next),u}function q(e,n){if(!e)return e;n=n||e;var t,r=e;do{if(t=!1,r.steiner||!N(r,r.next)&&0!==E(r.prev,r,r.next))r=r.next;else{if(C(r),(r=n=r.prev)===r.next)break;t=!0}}while(t||r!==n);return n}function O(e,n,t,r,x,i,u){if(e){if(!u&&i){for(var f=e,o=r,v=x,p=i,y=f;0===y.z&&(y.z=k(y.x,y.y,o,v,p)),y.prevZ=y.prev,y.nextZ=y.next,(y=y.next)!==f;);y.prevZ.nextZ=null,y.prevZ=null;var a,l,h,s,c,d,Z,g,w=y,M=1;do{for(l=w,c=w=null,d=0;l;){for(d++,h=l,a=Z=0;a<M&&(Z++,h=h.nextZ);a++);for(g=M;0<Z||0<g&&h;)0!==Z&&(0===g||!h||l.z<=h.z)?(l=(s=l).nextZ,Z--):(h=(s=h).nextZ,g--),c?c.nextZ=s:w=s,s.prevZ=c,c=s;l=h}}while(c.nextZ=null,M*=2,1<d)}for(var b,m,z=e;e.prev!==e.next;)if(b=e.prev,m=e.next,i?function(e,n,t,r){var x=e.prev,i=e,u=e.next;if(0<=E(x,i,u))return;var f=x.x,o=i.x,v=u.x,p=x.y,y=i.y,a=u.y,l=f<o?f<v?f:v:o<v?o:v,h=p<y?p<a?p:a:y<a?y:a,s=o<f?v<f?f:v:v<o?o:v,c=y<p?a<p?p:a:a<y?y:a,d=k(l,h,n,t,r),Z=k(s,c,n,t,r),g=e.prevZ,w=e.nextZ;for(;g&&g.z>=d&&w&&w.z<=Z;){if(g.x>=l&&g.x<=s&&g.y>=h&&g.y<=c&&g!==x&&g!==u&&D(f,p,o,y,v,a,g.x,g.y)&&0<=E(g.prev,g,g.next))return;if(g=g.prevZ,w.x>=l&&w.x<=s&&w.y>=h&&w.y<=c&&w!==x&&w!==u&&D(f,p,o,y,v,a,w.x,w.y)&&0<=E(w.prev,w,w.next))return;w=w.nextZ}for(;g&&g.z>=d;){if(g.x>=l&&g.x<=s&&g.y>=h&&g.y<=c&&g!==x&&g!==u&&D(f,p,o,y,v,a,g.x,g.y)&&0<=E(g.prev,g,g.next))return;g=g.prevZ}for(;w&&w.z<=Z;){if(w.x>=l&&w.x<=s&&w.y>=h&&w.y<=c&&w!==x&&w!==u&&D(f,p,o,y,v,a,w.x,w.y)&&0<=E(w.prev,w,w.next))return;w=w.nextZ}return 1}(e,r,x,i):function(e){var n=e.prev,t=e,e=e.next;if(0<=E(n,t,e))return;var r=n.x,x=t.x,i=e.x,u=n.y,f=t.y,o=e.y,v=r<x?r<i?r:i:x<i?x:i,p=u<f?u<o?u:o:f<o?f:o,y=x<r?i<r?r:i:i<x?x:i,a=f<u?o<u?u:o:o<f?f:o,l=e.next;for(;l!==n;){if(l.x>=v&&l.x<=y&&l.y>=p&&l.y<=a&&D(r,u,x,f,i,o,l.x,l.y)&&0<=E(l.prev,l,l.next))return;l=l.next}return 1}(e))n.push(b.i/t|0),n.push(e.i/t|0),n.push(m.i/t|0),C(e),e=m.next,z=m.next;else if((e=m)===z){u?1===u?O(e=function(e,n,t){var r=e;do{var x=r.prev,i=r.next.next}while(!N(x,i)&&U(x,r,r.next,i)&&_(x,i)&&_(i,x)&&(n.push(x.i/t|0),n.push(r.i/t|0),n.push(i.i/t|0),C(r),C(r.next),r=e=i),r=r.next,r!==e);return q(r)}(q(e),n,t),n,t,r,x,i,2):2===u&&function(e,n,t,r,x,i){var u=e;do{for(var f,o=u.next.next;o!==u.prev;){if(u.i!==o.i&&function(e,n){return e.next.i!==n.i&&e.prev.i!==n.i&&!function(e,n){var t=e;do{if(t.i!==e.i&&t.next.i!==e.i&&t.i!==n.i&&t.next.i!==n.i&&U(t,t.next,e,n))return 1}while(t=t.next,t!==e);return}(e,n)&&(_(e,n)&&_(n,e)&&function(e,n){var t=e,r=!1,x=(e.x+n.x)/2,i=(e.y+n.y)/2;for(;t.y>i!=t.next.y>i&&t.next.y!==t.y&&x<(t.next.x-t.x)*(i-t.y)/(t.next.y-t.y)+t.x&&(r=!r),t=t.next,t!==e;);return r}(e,n)&&(E(e.prev,e,n.prev)||E(e,n.prev,n))||N(e,n)&&0<E(e.prev,e,e.next)&&0<E(n.prev,n,n.next))}(u,o))return f=j(u,o),u=q(u,u.next),f=q(f,f.next),O(u,n,t,r,x,i,0),O(f,n,t,r,x,i,0);o=o.next}}while(u=u.next,u!==e)}(e,n,t,r,x,i):O(q(e),n,t,r,x,i,1);break}}}function c(e,n){return e.x-n.x}function k(e,n,t,r,x){return(e=1431655765&((e=858993459&((e=252645135&((e=16711935&((e=(e-t)*x|0)|e<<8))|e<<4))|e<<2))|e<<1))|(n=1431655765&((n=858993459&((n=252645135&((n=16711935&((n=(n-r)*x|0)|n<<8))|n<<4))|n<<2))|n<<1))<<1}function D(e,n,t,r,x,i,u,f){return(e-u)*(i-f)<=(x-u)*(n-f)&&(t-u)*(n-f)<=(e-u)*(r-f)&&(x-u)*(r-f)<=(t-u)*(i-f)}function E(e,n,t){return(n.y-e.y)*(t.x-n.x)-(n.x-e.x)*(t.y-n.y)}function N(e,n){return e.x===n.x&&e.y===n.y}function U(e,n,t,r){var x=v(E(e,n,t)),i=v(E(e,n,r)),u=v(E(t,r,e)),f=v(E(t,r,n));return x!==i&&u!==f||(0===x&&o(e,t,n)||(0===i&&o(e,r,n)||(0===u&&o(t,e,r)||!(0!==f||!o(t,n,r)))))}function o(e,n,t){return n.x<=Math.max(e.x,t.x)&&n.x>=Math.min(e.x,t.x)&&n.y<=Math.max(e.y,t.y)&&n.y>=Math.min(e.y,t.y)}function v(e){return 0<e?1:e<0?-1:0}function _(e,n){return E(e.prev,e,e.next)<0?0<=E(e,n,e.next)&&0<=E(e,e.prev,n):E(e,n,e.prev)<0||E(e,e.next,n)<0}function j(e,n){var t=new u(e.i,e.x,e.y),r=new u(n.i,n.x,n.y),x=e.next,i=n.prev;return(e.next=n).prev=e,(t.next=x).prev=t,(r.next=t).prev=r,(i.next=r).prev=i,r}function f(e,n,t,r){e=new u(e,n,t);return r?(e.next=r.next,(e.prev=r).next.prev=e,r.next=e):(e.prev=e).next=e,e}function C(e){e.next.prev=e.prev,e.prev.next=e.next,e.prevZ&&(e.prevZ.nextZ=e.nextZ),e.nextZ&&(e.nextZ.prevZ=e.prevZ)}function u(e,n,t){this.i=e,this.x=n,this.y=t,this.prev=null,this.next=null,this.z=0,this.prevZ=null,this.nextZ=null,this.steiner=!1}function d(e,n,t,r){for(var x=0,i=n,u=t-r;i<t;i+=r)x+=(e[u]-e[i])*(e[i+1]+e[u+1]),u=i;return x}n.exports=r,(n.exports.default=r).deviation=function(e,n,t,r){var x=n&&n.length,i=x?n[0]*t:e.length,u=Math.abs(d(e,0,i,t));if(x)for(var f=0,o=n.length;f<o;f++){var v=n[f]*t,p=f<o-1?n[f+1]*t:e.length;u-=Math.abs(d(e,v,p,t))}for(var y=0,f=0;f<r.length;f+=3){var a=r[f]*t,l=r[f+1]*t,h=r[f+2]*t;y+=Math.abs((e[a]-e[h])*(e[1+l]-e[1+a])-(e[a]-e[l])*(e[1+h]-e[1+a]))}return 0===u&&0===y?0:Math.abs((y-u)/u)},r.flatten=function(e){for(var n=e[0][0].length,t={vertices:[],holes:[],dimensions:n},r=0,x=0;x<e.length;x++){for(var i=0;i<e[x].length;i++)for(var u=0;u<n;u++)t.vertices.push(e[x][i][u]);0<x&&(r+=e[x-1].length,t.holes.push(r))}return t}},{}]},{},[1])(1)});
+</script>
 <script>
 'use strict';
 const $ = s => document.querySelector(s);
@@ -350,7 +353,7 @@ const groundP = prog(COMMON + `
 layout(location=0) in vec2 aP; out vec2 vW;
 void main(){ vW=aP; gl_Position=uVP*vec4(aP.x,0.,aP.y,1.); }`,
 COMMON + `
-in vec2 vW; uniform sampler2D uDist; uniform float uExt; uniform float uTexel; layout(location=0) out vec4 oC; layout(location=1) out vec4 oN;
+in vec2 vW; uniform sampler2D uDist; uniform float uExt; uniform float uTexel; uniform int uReal; layout(location=0) out vec4 oC; layout(location=1) out vec4 oN;
 void main(){
   vec2 p=vec2(vW.x,-vW.y);
   vec2 uv=(p+uExt)/(2.*uExt);
@@ -359,6 +362,7 @@ void main(){
   float r=length(p);
   float n=vnoise(p/90.)*.6+vnoise(p/23.)*.4;
   vec3 col = n<.42?vec3(.27,.43,.23):(n<.62?vec3(.33,.5,.26):vec3(.4,.56,.29));
+  if(uReal==1){ oC=vec4(col*toon(vec3(0,1,0)),1.); oN=vec4(.5,1.,.5,1.); return; }
   // pola uprawne poza miastem
   if(dd>200. && r>2600.){
     vec2 cell=floor(p/vec2(140.,90.)); float h=h21(cell);
@@ -384,6 +388,8 @@ in vec2 vUV; uniform int uMode; uniform vec3 uHL; layout(location=0) out vec4 oC
 void main(){
   oN=vec4(.5,1.,.5,1.);
   if(uMode==2){ if(fract(vUV.y/7.)<.42) discard; oC=vec4(vec3(.97,.97,.95),.5); return; }
+  if(uMode==3){ vec3 c=abs(vUV.x)<.55 && fract(vUV.y/4.)<.45 ? vec3(.24,.22,.21) : vec3(.5,.47,.44); oC=vec4(c*toon(vec3(0,1,0)),1.); return; }
+  if(uMode==4){ oC=vec4(vec3(.17,.34,.54)*toon(vec3(0,1,0)),1.); return; }
   if(uMode==1){
     float s=step(.5,fract((vUV.y-uTime*28.)/16.));
     vec3 c=uHL*(.8+.4*s)*(1.+.25*uNight);
@@ -401,18 +407,7 @@ void main(){
 }`);
 
 // --- instancjonowane prostopadłościany: budynki, drzewa, przystanki, autobusy
-const boxP = prog(COMMON + `
-layout(location=0) in vec3 aPos; layout(location=1) in vec3 aNor;
-layout(location=2) in vec4 iA; layout(location=3) in vec4 iB; layout(location=4) in vec4 iC;
-out vec3 vNor; out vec3 vLN; out vec3 vCol; out vec3 vLoc; out vec3 vSize; flat out float vKind; flat out float vSeed;
-void main(){
-  vec3 l=aPos*iB.xyz; float c=cos(iA.w), s=sin(iA.w);
-  vec3 r=vec3(l.x*c+l.z*s, l.y, -l.x*s+l.z*c);
-  vNor=vec3(aNor.x*c+aNor.z*s, aNor.y, -aNor.x*s+aNor.z*c);
-  vLN=aNor; vCol=iC.rgb; vLoc=l; vSize=iB.xyz; vKind=iB.w; vSeed=iC.w;
-  gl_Position=uVP*vec4(iA.xyz+r,1.);
-}`,
-COMMON + `
+const SOLID_FS = COMMON + `
 in vec3 vNor; in vec3 vLN; in vec3 vCol; in vec3 vLoc; in vec3 vSize; flat in float vKind; flat in float vSeed;
 layout(location=0) out vec4 oC; layout(location=1) out vec4 oN;
 void main(){
@@ -434,7 +429,7 @@ void main(){
       }
     } else if(!side && vLN.y>0.){
       if(k==7){ float h=fract(vSeed*.173); col = h<.4? vec3(.62,.27,.2) : (h<.75? vec3(.52,.24,.2) : vec3(.42,.3,.27)); }
-      else { col = mix(col, vec3(.52,.52,.54), .65); }
+      else { col = mix(col, vec3(.56,.52,.46), .65); }
     }
   } else if(k==1){ col*= .9+.2*h21(vec2(vSeed)); }
   else if(k==4||k==5){
@@ -449,8 +444,57 @@ void main(){
   else if(k==6){ flag=0.; emis=vec3(.95,.82,.3)*(.6+.4*sin(uTime*5.)); }
   oC=vec4(col*toon(n)+emis, flag>.5?1.:.5);
   oN=vec4(n*.5+.5,1.);
+}`;
+const boxP = prog(COMMON + `
+layout(location=0) in vec3 aPos; layout(location=1) in vec3 aNor;
+layout(location=2) in vec4 iA; layout(location=3) in vec4 iB; layout(location=4) in vec4 iC;
+out vec3 vNor; out vec3 vLN; out vec3 vCol; out vec3 vLoc; out vec3 vSize; flat out float vKind; flat out float vSeed;
+void main(){
+  vec3 l=aPos*iB.xyz; float c=cos(iA.w), s=sin(iA.w);
+  vec3 r=vec3(l.x*c+l.z*s, l.y, -l.x*s+l.z*c);
+  vNor=vec3(aNor.x*c+aNor.z*s, aNor.y, -aNor.x*s+aNor.z*c);
+  vLN=aNor; vCol=iC.rgb; vLoc=l; vSize=iB.xyz; vKind=iB.w; vSeed=iC.w;
+  gl_Position=uVP*vec4(iA.xyz+r,1.);
+}`,
+SOLID_FS);
+// ściana: vLoc.x to pozycja wzdłuż ściany, więc ten sam shader rysuje okna
+const meshP = prog(COMMON + `
+layout(location=0) in vec3 aPos; layout(location=1) in vec3 aNor; layout(location=2) in vec3 aWall; layout(location=3) in vec2 aKS; layout(location=4) in vec3 aCol;
+out vec3 vNor; out vec3 vLN; out vec3 vCol; out vec3 vLoc; out vec3 vSize; flat out float vKind; flat out float vSeed;
+void main(){
+  vNor=aNor; vLN=abs(aNor.y)<.5?vec3(0,0,1):vec3(0,1,0); vCol=aCol; vSize=vec3(aWall.y*.1,aWall.z*.1,0.);
+  vLoc=vec3(aWall.x*.1-vSize.x*.5,aPos.y,0.); vKind=aKS.x; vSeed=aKS.y;
+  gl_Position=uVP*vec4(aPos,1.);
+}`, SOLID_FS);
+// teren z OSM: płaskie wielokąty, kolor wg klasy
+const landP = prog(COMMON + `
+layout(location=0) in vec2 aP; layout(location=1) in vec2 aC; out vec2 vW; flat out int vC; flat out float vS;
+void main(){ vW=vec2(aP.x,-aP.y); vC=int(aC.x+.5); vS=aC.y; gl_Position=uVP*vec4(aP.x,0.,aP.y,1.); }`,
+COMMON + `
+in vec2 vW; flat in int vC; flat in float vS; uniform float uTexel; layout(location=0) out vec4 oC; layout(location=1) out vec4 oN;
+void main(){
+  vec2 p=vW; float n=vnoise(p/30.)*.6+vnoise(p/9.)*.4; vec3 c;
+  if(vC==0) c=mix(vec3(.33,.5,.26),vec3(.4,.53,.3),step(.5,n));
+  else if(vC==1){
+    float h=fract(vS*.137), a=h*3.1416; vec2 d=vec2(cos(a),sin(a));
+    vec3 f= h<.3? vec3(.52,.55,.3) : (h<.55? vec3(.42,.5,.26) : (h<.75? vec3(.6,.5,.33): vec3(.35,.47,.25)));
+    c=mix(f,f*.88,uTexel<2.5?step(.5,fract(dot(p,d)/6.)):0.);
+  }
+  else if(vC==2) c=mix(vec3(.4,.56,.29),vec3(.46,.6,.32),step(.55,n));
+  else if(vC==3) c=vec3(.56,.5,.38);
+  else if(vC==4) c=mix(vec3(.5,.49,.47),vec3(.45,.44,.43),step(.55,n));
+  else if(vC==5) c=mix(vec3(.3,.46,.24),vec3(.42,.52,.28),step(.5,fract(p.x/8.)));
+  else if(vC==6) c=mix(vec3(.27,.41,.26),vec3(.6,.6,.57),step(.82,h21(floor(p/5.))));
+  else if(vC==7) c=mix(vec3(.36,.56,.27),vec3(.42,.6,.3),step(.55,n));
+  else if(vC==8) c=mix(vec3(.15,.28,.17),vec3(.2,.36,.2),step(.5,n));
+  else if(vC==9) c=mix(vec3(.28,.42,.23),vec3(.2,.34,.2),step(.55,n));
+  else if(vC==10) c=mix(vec3(.29,.43,.37),vec3(.22,.37,.42),step(.55,n));
+  else if(vC==11) c=vec3(.82,.74,.54);
+  else if(vC==12) c=vec3(.3,.56,.3);
+  else if(vC==13) c=vec3(.4,.39,.4);
+  else { float w=step(.8,vnoise(vec2(p.x/26.+uTime*.25,p.y/7.))); c=mix(vec3(.17,.34,.54),vec3(.27,.45,.66),w); }
+  oC=vec4(c*toon(vec3(0,1,0)),1.); oN=vec4(.5,1.,.5,1.);
 }`);
-
 // --- post-processing: kontury, paleta, dithering, skalowanie bez wygładzania
 const postP = prog(`#version 300 es
 const vec2 v[3]=vec2[3](vec2(-1,-1),vec2(3,-1),vec2(-1,3));
@@ -553,11 +597,11 @@ function boxVAO(instData, dynamic) {
 }
 
 // pas drogi z listy tras: [x, z, offset x, offset z (w jednostkach pół-szerokości), poprzecznie, wzdłuż]
-function stripGeo(shapeIdxs) {
-  let segs = 0; for (const s of shapeIdxs) segs += S.shapes[s].cum.length - 1;
+function stripGeo(shapeIdxs) { return stripLines(shapeIdxs.map(s => S.shapes[s])); }
+function stripLines(lines) {
+  let segs = 0; for (const l of lines) segs += l.cum.length - 1;
   const out = new Float32Array(segs * 6 * 6); let o = 0;
-  for (const s of shapeIdxs) {
-    const { pts, cum } = S.shapes[s];
+  for (const { pts, cum } of lines) {
     for (let i = 0; i < cum.length - 1; i++) {
       const ax = pts[2 * i], ay = pts[2 * i + 1], bx = pts[2 * i + 2], by = pts[2 * i + 3];
       const L = Math.hypot(bx - ax, by - ay) || 1, dx = (bx - ax) / L, dy = (by - ay) / L, e = .9;
@@ -664,6 +708,155 @@ function buildStops() {
     inst.push(x, 0, -y, a, 4, 2.6, 1.6, 3, .24, .43, .62, 0);
   }
   return new Float32Array(inst);
+}
+
+/* ======================= ŚWIAT Z OSM ======================= */
+// Kafle: rysujemy tylko te w kadrze. W kaflu instancje idą od największych, więc przy oddaleniu wystarczy początek listy.
+const TILE = 1500, LOD_AREA = [60, 300], LOD_TREE = [.7, .92];
+let WORLD = null;
+const lodLevel = () => cam.half < 1000 ? 0 : cam.half < 2600 ? 1 : 2;
+const tileKey = (x, y) => Math.floor(x / TILE) * 65536 + Math.floor(y / TILE);
+function undelta(a) { const o = new Float64Array(a.length); let x = 0, y = 0; for (let i = 0; i < a.length; i += 2) { x += a[i]; y += a[i + 1]; o[i] = x / 2; o[i + 1] = y / 2; } return o; }
+function ringArea(r) { let a = 0; const n = r.length; for (let i = 0; i < n; i += 2) { const j = (i + 2) % n; a += r[i] * r[j + 1] - r[j] * r[i + 1]; } return a / 2; }
+function lineOf(a) { const pts = undelta(a), cum = [0]; for (let i = 2; i < pts.length; i += 2) cum.push(cum[cum.length - 1] + Math.hypot(pts[i] - pts[i - 2], pts[i + 1] - pts[i - 1])); return { pts, cum }; }
+
+function tileRange(x, y) { const tx = Math.floor(x / TILE), ty = Math.floor(y / TILE); return { x0: tx * TILE, x1: (tx + 1) * TILE, z0: -(ty + 1) * TILE, z1: -ty * TILE }; }
+function tileInstances(rows, lods) { // rows: [x, y, rozmiar, 12 liczb instancji]
+  const byTile = new Map();
+  for (const r of rows) { const k = tileKey(r[0], r[1]); let t = byTile.get(k); if (!t) byTile.set(k, t = { r: tileRange(r[0], r[1]), rows: [] }); t.rows.push(r); }
+  const data = new Float32Array(rows.length * 12), tiles = []; let o = 0;
+  for (const t of byTile.values()) {
+    t.rows.sort((a, b) => b[2] - a[2]);
+    const off = o, lod = [t.rows.length, 0, 0];
+    for (const r of t.rows) { data.set(r[3], o * 12); o++; if (r[2] >= lods[0]) lod[1]++; if (r[2] >= lods[1]) lod[2]++; }
+    tiles.push({ ...t.r, off, lod });
+  }
+  return { ...boxVAO(data, false), tiles };
+}
+function viewBounds() {
+  const m = 250, c = [[0, 0], [innerWidth, 0], [0, innerHeight], [innerWidth, innerHeight]].map(p => screenToGround(p[0], p[1]));
+  return { x0: Math.min(...c.map(p => p[0])) - m, x1: Math.max(...c.map(p => p[0])) + m, z0: Math.min(...c.map(p => p[1])) - m, z1: Math.max(...c.map(p => p[1])) + m };
+}
+const tileVisible = (t, v) => t.x1 >= v.x0 && t.x0 <= v.x1 && t.z1 >= v.z0 && t.z0 <= v.z1;
+function drawTiles(set, level, v) {
+  gl.bindVertexArray(set.vao); gl.bindBuffer(gl.ARRAY_BUFFER, set.buf);
+  for (const t of set.tiles) {
+    const n = t.lod[level]; if (!n || !tileVisible(t, v)) continue;
+    for (let i = 0; i < 3; i++) gl.vertexAttribPointer(2 + i, 4, gl.FLOAT, false, 48, t.off * 48 + i * 16);
+    gl.drawArraysInstanced(gl.TRIANGLES, 0, 36, n);
+  }
+}
+
+function buildWorld() {
+  const M = D.map, rnd = mulberry(20261107), TREE = ['#2f5a33','#3b6d38','#46803f','#557f3a','#2c4f30'].map(hex3);
+  const WALLS = { 7: ['#e8e0cc','#d9c9a8','#f0ead8','#cdbfa5','#e0d4bc'], 0: ['#e6e2d8','#d6d2c8','#cfd6dc','#e3d9c0','#c9cfc2','#dccfb5'], 8: ['#b8bcc0','#a9adb2','#c3c1b8'] };
+  for (const k in WALLS) WALLS[k] = WALLS[k].map(hex3);
+  const wallOf = (k, seed) => WALLS[k][seed % WALLS[k].length];
+
+  // budynki prostokątne: obrócone prostopadłościany
+  const b = M.b, rows = new Array(b.x.length); let x = 0, y = 0;
+  for (let i = 0; i < b.x.length; i++) {
+    x += b.x[i]; y += b.y[i];
+    const X = x / 2, Y = y / 2, l = b.l[i] / 2, w = b.w[i] / 2, h = b.h[i] / 2, k = b.k[i], seed = Math.abs(x * 31 + y) % 997, c = wallOf(k, seed);
+    rows[i] = [X, Y, l * w, [X, 0, -Y, b.a[i] / 2 * Math.PI / 180, l, h, w, k, c[0], c[1], c[2], seed]];
+  }
+  const boxes = tileInstances(rows, LOD_AREA);
+
+  // budynki o złożonym obrysie: ściany i dach z prawdziwego kształtu
+  const polys = M.p.map(([h, k, ...rs]) => {
+    const rings = rs.map(undelta), lenO = rings[0].length; let area = ringArea(rings[0]);
+    for (let i = 1; i < rings.length; i++) area += ringArea(rings[i]);
+    return { h: h / 2, k, rings, area, x: rings[0][0], y: rings[0][1], lenO };
+  });
+  let nV = 0, nI = 0;
+  for (const P of polys) {
+    const flat = new Float64Array(P.rings.reduce((a, r) => a + r.length, 0)), holes = []; let o = 0;
+    P.rings.forEach((r, i) => { if (i) holes.push(o / 2); flat.set(r, o); o += r.length; });
+    P.flat = flat; P.tris = earcut(flat, holes, 2); nV += flat.length * 2 + flat.length / 2; nI += flat.length * 3 + P.tris.length;
+  }
+  const buf = new ArrayBuffer(nV * 28), f32 = new Float32Array(buf), i8 = new Int8Array(buf), u16 = new Uint16Array(buf), u8 = new Uint8Array(buf), idx = new Uint32Array(nI);
+  let v = 0, ii = 0; const meshTiles = new Map();
+  const vert = (px, py, pz, nx, ny, nz, u, W, H, k, seed, c) => {
+    const b4 = v * 7, by = v * 28;
+    f32[b4] = px; f32[b4 + 1] = py; f32[b4 + 2] = pz;
+    i8[by + 12] = nx * 127; i8[by + 13] = ny * 127; i8[by + 14] = nz * 127;
+    u16[by / 2 + 8] = u * 10; u16[by / 2 + 9] = W * 10; u16[by / 2 + 10] = H * 10;
+    u8[by + 22] = k; u8[by + 23] = seed; u8[by + 24] = c[0] * 255; u8[by + 25] = c[1] * 255; u8[by + 26] = c[2] * 255;
+    return v++;
+  };
+  for (const P of polys) { const k = tileKey(P.x, P.y); let t = meshTiles.get(k); if (!t) meshTiles.set(k, t = { ...tileRange(P.x, P.y), list: [] }); t.list.push(P); }
+  const tilesM = [];
+  for (const t of meshTiles.values()) {
+    t.list.sort((a, b) => b.area - a.area);
+    const off = ii, lod = [0, 0, 0];
+    for (const P of t.list) {
+      const seed = Math.abs(Math.round(P.x * 62 + P.y * 2)) % 251, c = wallOf(P.k, seed), { h, k } = P;
+      for (const r of P.rings) for (let i = 0, n = r.length; i < n; i += 2) {
+        const j = (i + 2) % n, ax = r[i], ay = r[i + 1], bx = r[j], by = r[j + 1], L = Math.hypot(bx - ax, by - ay) || 1, nx = (by - ay) / L, nz = (bx - ax) / L;
+        const a = vert(ax, 0, -ay, nx, 0, nz, 0, L, h, k, seed, c), e = vert(bx, 0, -by, nx, 0, nz, L, L, h, k, seed, c), g = vert(bx, h, -by, nx, 0, nz, L, L, h, k, seed, c), d = vert(ax, h, -ay, nx, 0, nz, 0, L, h, k, seed, c);
+        idx[ii++] = a; idx[ii++] = e; idx[ii++] = g; idx[ii++] = a; idx[ii++] = g; idx[ii++] = d;
+      }
+      const base = v, fl = P.flat;
+      for (let i = 0; i < fl.length; i += 2) vert(fl[i], h, -fl[i + 1], 0, 1, 0, 0, 0, h, k, seed, c);
+      for (const t3 of P.tris) idx[ii++] = base + t3;
+      const cnt = ii - off; lod[0] = cnt; if (P.area >= LOD_AREA[0]) lod[1] = cnt; if (P.area >= LOD_AREA[1]) lod[2] = cnt;
+    }
+    tilesM.push({ x0: t.x0, x1: t.x1, z0: t.z0, z1: t.z1, off, lod });
+  }
+  const meshVao = gl.createVertexArray(); gl.bindVertexArray(meshVao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer()); gl.bufferData(gl.ARRAY_BUFFER, buf, gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 28, 0);
+  gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.BYTE, true, 28, 12);
+  gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 3, gl.UNSIGNED_SHORT, false, 28, 16);
+  gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3, 2, gl.UNSIGNED_BYTE, false, 28, 22);
+  gl.enableVertexAttribArray(4); gl.vertexAttribPointer(4, 3, gl.UNSIGNED_BYTE, true, 28, 24);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer()); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+  gl.bindVertexArray(null);
+
+  // teren: wielokąty w kolejności klas (woda na końcu), drzewa w lasach
+  const forest = M.classes.indexOf('forest'), land = []; let nT = 0, forestArea = 0;
+  for (const [cls, ...rs] of M.l) {
+    const rings = rs.map(undelta), flat = new Float64Array(rings.reduce((a, r) => a + r.length, 0)), holes = []; let o = 0;
+    rings.forEach((r, i) => { if (i) holes.push(o / 2); flat.set(r, o); o += r.length; });
+    const tris = earcut(flat, holes, 2); nT += tris.length; land.push({ cls, flat, tris, seed: Math.abs(Math.round(flat[0] + flat[1])) % 997 });
+    if (cls === forest) forestArea += ringArea(rings[0]);
+  }
+  const landData = new Float32Array(nT * 4), treeRows = [], perM2 = Math.min(1 / 600, 150000 / Math.max(forestArea, 1));
+  let lo = 0;
+  const crown = (X, Y, base, s, th) => treeRows.push([X, Y, rnd(), [X, base, -Y, rnd() * 3, s, th, s, 1, ...TREE[Math.floor(rnd() * TREE.length)], Math.floor(rnd() * 997)]]);
+  for (const { cls, flat, tris, seed } of land) {
+    for (const t of tris) { landData[lo++] = flat[2 * t]; landData[lo++] = -flat[2 * t + 1]; landData[lo++] = cls; landData[lo++] = seed; }
+    if (cls !== forest) continue;
+    for (let i = 0; i < tris.length; i += 3) {
+      const ax = flat[2 * tris[i]], ay = flat[2 * tris[i] + 1], bx = flat[2 * tris[i + 1]], by = flat[2 * tris[i + 1] + 1], cx = flat[2 * tris[i + 2]], cy = flat[2 * tris[i + 2] + 1];
+      const want = Math.abs((bx - ax) * (cy - ay) - (cx - ax) * (by - ay)) / 2 * perM2;
+      for (let n = Math.floor(want) + (rnd() < want % 1 ? 1 : 0); n > 0; n--) {
+        let u = rnd(), w = rnd(); if (u + w > 1) { u = 1 - u; w = 1 - w; }
+        crown(ax + (bx - ax) * u + (cx - ax) * w, ay + (by - ay) * u + (cy - ay) * w, 0, 5 + rnd() * 3, 8 + rnd() * 6);
+      }
+    }
+  }
+  const tr = undelta(M.t);
+  for (let i = 0; i < tr.length; i += 2) {
+    const X = tr[i], Y = tr[i + 1], r = rnd();
+    treeRows.push([X, Y, r, [X, 0, -Y, 0, .8, 1.6, .8, 2, .35, .25, .19, 0]]);
+    crown(X, Y, 1.4, 3.5 + r * 2.5, 4 + r * 3);
+  }
+
+  const lineVao = (lines, hw, px, maxHalf, mode) => {
+    const g = stripLines(lines.map(lineOf)), { vao } = vaoFrom(g, [[0, 4, 6, 0], [1, 2, 6, 4]]);
+    return { vao, count: g.length / 6, hw, px, maxHalf, mode };
+  };
+  const landVao = vaoFrom(landData, [[0, 2, 4, 0], [1, 2, 4, 2]]);
+  const counts = { buildings: b.x.length + M.p.length, trees: treeRows.length - tr.length / 2 };
+  WORLD = { counts, boxes, trees: tileInstances(treeRows, LOD_TREE), mesh: { vao: meshVao, tiles: tilesM }, land: { vao: landVao.vao, count: nT },
+    waterLines: [lineVao(M.w[1], 1.2, .5, 2600, 4), lineVao(M.w[0], 5, .9, 1e9, 4)],
+    roads: [lineVao(M.r[3], 2.4, 0, 1400, 0), lineVao(M.r[2], 3.8, .6, 3600, 0), lineVao(M.r[4], 2.6, .7, 1e9, 3), lineVao(M.r[1], 5.5, .8, 1e9, 0), lineVao(M.r[0], 8, 1, 1e9, 0)] };
+  delete D.map;
+}
+function drawMesh(level, v) {
+  gl.bindVertexArray(WORLD.mesh.vao);
+  for (const t of WORLD.mesh.tiles) { const n = t.lod[level]; if (n && tileVisible(t, v)) gl.drawElements(gl.TRIANGLES, n, gl.UNSIGNED_INT, t.off * 4); }
 }
 
 /* ======================= KAMERA ======================= */
@@ -795,9 +988,17 @@ function render(now) {
   const t = now / 1000;
   const common = P => { gl.useProgram(P.p); gl.uniformMatrix4fv(P.u.uVP, false, VP); gl.uniform3fv(P.u.uSun, sun.sun); gl.uniform3fv(P.u.uSunCol, sun.sunCol); gl.uniform3fv(P.u.uAmb, sun.amb); if (P.u.uNight) gl.uniform1f(P.u.uNight, sun.night); if (P.u.uTime) gl.uniform1f(P.u.uTime, t); };
 
-  common(groundP); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, R.distTex); gl.uniform1i(groundP.u.uDist, 0); gl.uniform1f(groundP.u.uExt, EXT); gl.uniform1f(groundP.u.uTexel, 2 * cam.half / R.low[1]); gl.bindVertexArray(groundV.vao); gl.drawArrays(gl.TRIANGLES, 0, 6);
-  common(roadP); const texel = 2 * cam.half / R.low[1];
-  gl.uniform1i(roadP.u.uMode, 0); gl.uniform1f(roadP.u.uY, .04); gl.uniform1f(roadP.u.uHW, Math.max(4.5, texel * .9)); gl.bindVertexArray(roadV.vao); gl.drawArrays(gl.TRIANGLES, 0, roadCount);
+  common(groundP); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, R.distTex); gl.uniform1i(groundP.u.uDist, 0); gl.uniform1f(groundP.u.uExt, EXT); gl.uniform1f(groundP.u.uTexel, 2 * cam.half / R.low[1]); gl.uniform1i(groundP.u.uReal, WORLD ? 1 : 0); gl.bindVertexArray(groundV.vao); gl.drawArrays(gl.TRIANGLES, 0, 6);
+  const texel = 2 * cam.half / R.low[1];
+  if (WORLD) { // teren leży w płaszczyźnie gruntu: kolejność rysowania decyduje, co jest na wierzchu
+    gl.disable(gl.DEPTH_TEST);
+    common(landP); gl.uniform1f(landP.u.uTexel, texel); gl.bindVertexArray(WORLD.land.vao); gl.drawArrays(gl.TRIANGLES, 0, WORLD.land.count);
+    gl.enable(gl.DEPTH_TEST);
+  }
+  common(roadP);
+  const drawLine = L => { if (cam.half > L.maxHalf) return; gl.uniform1i(roadP.u.uMode, L.mode); gl.uniform1f(roadP.u.uY, .04); gl.uniform1f(roadP.u.uHW, Math.max(L.hw, texel * L.px)); gl.bindVertexArray(L.vao); gl.drawArrays(gl.TRIANGLES, 0, L.count); };
+  if (WORLD) { WORLD.waterLines.forEach(drawLine); WORLD.roads.forEach(drawLine); }
+  else { gl.uniform1i(roadP.u.uMode, 0); gl.uniform1f(roadP.u.uY, .04); gl.uniform1f(roadP.u.uHW, Math.max(4.5, texel * .9)); gl.bindVertexArray(roadV.vao); gl.drawArrays(gl.TRIANGLES, 0, roadCount); }
   if (hlGeo) {
     const c = D.routes[selTrip >= 0 ? S.trips[selTrip].route : selRoute].c;
     gl.uniform1i(roadP.u.uMode, 1); gl.uniform1f(roadP.u.uY, .12); gl.uniform1f(roadP.u.uHW, Math.max(2.8, texel * 1.6)); gl.uniform3f(roadP.u.uHL, c[0] / 255, c[1] / 255, c[2] / 255);
@@ -811,7 +1012,11 @@ function render(now) {
     gl.bindVertexArray(g.vao); gl.drawArrays(gl.TRIANGLES, 0, g.count);
   }
   common(boxP);
-  if (opt.bld) { gl.bindVertexArray(staticBox.vao); gl.drawArraysInstanced(gl.TRIANGLES, 0, 36, staticBox.count); }
+  if (opt.bld && WORLD) {
+    const lvl = lodLevel(), vb = viewBounds();
+    drawTiles(WORLD.boxes, lvl, vb); drawTiles(WORLD.trees, lvl, vb);
+    common(meshP); drawMesh(lvl, vb); common(boxP);
+  } else if (opt.bld) { gl.bindVertexArray(staticBox.vao); gl.drawArraysInstanced(gl.TRIANGLES, 0, 36, staticBox.count); }
   if (nDyn) { gl.bindBuffer(gl.ARRAY_BUFFER, dynBox.buf); gl.bufferSubData(gl.ARRAY_BUFFER, 0, dyn, 0, nDyn * 12); gl.bindVertexArray(dynBox.vao); gl.drawArraysInstanced(gl.TRIANGLES, 0, 36, nDyn); }
 
   // post
@@ -1807,26 +2012,26 @@ async function main() {
   setProgress(.45, 'Układanie dróg…'); await tick();
   buildGrid();
   setProgress(.6, 'Stawianie budynków…'); await tick();
-  const city = buildCity();
+  const city = D.map ? null : buildCity();
   setProgress(.85, 'Przygotowanie grafiki…'); await tick();
   R.distTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, R.distTex); gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, GN, GN, 0, gl.RED, gl.UNSIGNED_BYTE, gridDist);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   R.cubeBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, R.cubeBuf); gl.bufferData(gl.ARRAY_BUFFER, cubeGeo(), gl.STATIC_DRAW);
-  staticBox = boxVAO(city.data, false);
+  if (D.map) buildWorld(); else staticBox = boxVAO(city.data, false);
   stopBox = boxVAO(buildStops(), false);
   dynBox = boxVAO(dyn, true);
   setProgress(.92, 'Rysowanie podpisów…'); await buildAtlas();
   const E = 40000; groundV = vaoFrom(new Float32Array([-E, -E, E, -E, E, E, -E, -E, E, E, -E, E]), [[0, 2, 2, 0]]);
-  const rg = stripGeo(S.shapes.map((_, i) => i)); roadV = vaoFrom(rg, [[0, 4, 6, 0], [1, 2, 6, 4]]); roadCount = rg.length / 6;
+  if (!WORLD) { const rg = stripGeo(S.shapes.map((_, i) => i)); roadV = vaoFrom(rg, [[0, 4, 6, 0], [1, 2, 6, 4]]); roadCount = rg.length / 6; }
 
   // UI: linie, info
   $('#lineGrid').innerHTML = D.routes.map((r, i) => `<span class="chip" data-r="${i}" style="background:${rgbCss(r.c)}" title="${esc(r.name)}">${esc(r.n)}</span>`).join('');
   $('#lineGrid').addEventListener('click', e => { const c = e.target.closest('[data-r]'); if (!c) return; const ri = +c.dataset.r; select({ route: ri }); fitShapes([...S.routeShapes[ri]]); $('#linesOv').classList.remove('show'); });
   const f = D.feed;
-  $('#about').innerHTML = `Źródło danych: <b>ZTM Rzeszów</b> — <a href="https://otwartedane.erzeszow.pl/dataset/rozklady-jazdy-gtfs">otwartedane.erzeszow.pl</a>, w opracowaniu <a href="https://kmrzeszow.live/otwartedane/">kmrzeszow.live</a> (wersja ${esc(f.version || '')}, ważna ${esc(f.start || '')}–${esc(f.end || '')}, opublikował ${esc(f.publisher || '')}${f.built ? ', zbudowano ' + esc(f.built) : ''}). Dane zostały przetworzone. Gmina Miasto Rzeszów nie ponosi odpowiedzialności za dostępność, poprawność, aktualność, kompletność i jakość przetworzonych danych.<br><br>Budynki i zieleń są <b>poglądowe</b> — generowane proceduralnie wzdłuż tras, nie odpowiadają rzeczywistej zabudowie. Trasy, przystanki i rozkład są prawdziwe. ${city.buildings.toLocaleString('pl-PL')} budynków, ${city.trees.toLocaleString('pl-PL')} drzew.`;
-  $('#attr').textContent = (f.addr_source ? 'Adresy © OpenStreetMap · ' : '') + 'Dane: ZTM Rzeszów (przetworzone)' + (f.publisher ? ' · ' + f.publisher : '') + (f.built ? ' · ' + f.built : '') + ' · zabudowa poglądowa';
+  $('#about').innerHTML = `Źródło danych: <b>ZTM Rzeszów</b> — <a href="https://otwartedane.erzeszow.pl/dataset/rozklady-jazdy-gtfs">otwartedane.erzeszow.pl</a>, w opracowaniu <a href="https://kmrzeszow.live/otwartedane/">kmrzeszow.live</a> (wersja ${esc(f.version || '')}, ważna ${esc(f.start || '')}–${esc(f.end || '')}, opublikował ${esc(f.publisher || '')}${f.built ? ', zbudowano ' + esc(f.built) : ''}). Dane zostały przetworzone. Gmina Miasto Rzeszów nie ponosi odpowiedzialności za dostępność, poprawność, aktualność, kompletność i jakość przetworzonych danych.<br><br>${WORLD ? `Budynki, woda, teren, drogi i tory pochodzą z <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> (ODbL). Wysokości budynków są z OSM, a gdy ich brak, szacowane z typu i powierzchni. Drzewa w lasach są rozmieszczane w granicach lasów z OSM, nie według rzeczywistych pozycji. ${WORLD.counts.buildings.toLocaleString('pl-PL')} budynków, ${WORLD.counts.trees.toLocaleString('pl-PL')} drzew.` : `Budynki i zieleń są <b>poglądowe</b> — generowane proceduralnie wzdłuż tras, nie odpowiadają rzeczywistej zabudowie. Trasy, przystanki i rozkład są prawdziwe. ${city.buildings.toLocaleString('pl-PL')} budynków, ${city.trees.toLocaleString('pl-PL')} drzew.`}`;
+  $('#attr').textContent = (f.map_source ? 'Mapa i adresy © OpenStreetMap · ' : f.addr_source ? 'Adresy © OpenStreetMap · ' : '') + 'Dane: ZTM Rzeszów (przetworzone)' + (f.publisher ? ' · ' + f.publisher : '') + (f.built ? ' · ' + f.built : '') + (f.map_source ? '' : ' · zabudowa poglądowa');
   syncOpts(); syncSpeedBtns(); startLive();
   setProgress(1, 'Gotowe'); resize(); updateCamera();
   $('#loading').style.display = 'none';

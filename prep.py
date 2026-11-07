@@ -140,8 +140,8 @@ def load_addresses(path, stops, radius=1500):
     return out
 
 
-def prepare(src, out, addresses=None):
-    """Czyta GTFS z katalogu src (i opcjonalnie adresy OSM), zapisuje kompaktowy JSON do out."""
+def prepare(src, out, addresses=None, map_cache=None):
+    """Czyta GTFS z katalogu src (opcjonalnie adresy i warstwy mapy OSM), zapisuje kompaktowy JSON do out."""
     src = os.path.join(src, '')
 
     def rd(name):
@@ -335,9 +335,17 @@ def prepare(src, out, addresses=None):
         data['addr'] = load_addresses(addresses, out_stops)
         n_addr = sum(len(a[3]) // 2 for a in data['addr'])
         data['feed']['addr_source'] = 'OpenStreetMap (ODbL) ' + dt.datetime.fromtimestamp(os.path.getmtime(addresses)).strftime('%Y-%m-%d')
+    map_stats = {}
+    if map_cache:
+        from osm import compact, layer_path             # osm importuje proj z tego modułu
+        data['map'], map_stats = compact(map_cache)
+        if data['map']:
+            data['feed']['map_source'] = 'OpenStreetMap (ODbL) ' + dt.datetime.fromtimestamp(os.path.getmtime(layer_path(map_cache, 'buildings'))).strftime('%Y-%m-%d')
+        else:
+            del data['map']
     with open(out, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
-    return {'routes': len(out_routes), 'stops': len(out_stops), 'shapes': len(out_shapes),
+    return {**map_stats, 'routes': len(out_routes), 'stops': len(out_stops), 'shapes': len(out_shapes),
             'patterns': len(patterns), 'trips': len(out_trips), 'skipped_trips': skipped,
             'dates': len(dates), 'streets': len(out_streets), 'addresses': n_addr, 'start': start, 'end': end, 'version': feed.get('feed_version', '')}
 
@@ -346,4 +354,5 @@ if __name__ == '__main__':
     src = sys.argv[1] if len(sys.argv) > 1 else 'data/ztm/'
     out = sys.argv[2] if len(sys.argv) > 2 else 'data.json'
     addr = sys.argv[3] if len(sys.argv) > 3 else None
-    print(prepare(src, out, addr))
+    map_cache = sys.argv[4] if len(sys.argv) > 4 else None
+    print(prepare(src, out, addr, map_cache))

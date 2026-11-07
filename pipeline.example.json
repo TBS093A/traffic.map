@@ -25,5 +25,16 @@
       22.26
     ],
     "max_age_days": 14
+  },
+  "map": {
+    "enabled": true,
+    "url": "https://overpass-api.de/api/interpreter",
+    "bbox": [
+      49.9,
+      21.78,
+      50.14,
+      22.26
+    ],
+    "max_age_days": 14
   }
 }

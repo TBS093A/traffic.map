@@ -17,6 +17,7 @@ Użycie:  python3 pipeline.py [--config pipeline.json] [--force] [--verbose]
 import argparse
 import datetime as dt
 import email.utils
+import gzip
 import hashlib
 import json
 import logging
@@ -36,6 +37,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from prep import prepare, REQUIRED  # noqa: E402
 from build import build  # noqa: E402
+import osm  # noqa: E402
 
 DEFAULTS = {
     "sources": [
@@ -59,6 +61,15 @@ DEFAULTS = {
         "bbox": [49.90, 21.78, 50.14, 22.26],   # płd, zach, płn, wsch — obszar sieci ZTM
         "max_age_days": 14,
         "timeout_s": 200,
+    },
+    "map": {                       # budynki, woda, teren, drogi i drzewa z OSM
+        "enabled": True,
+        "url": "https://overpass-api.de/api/interpreter",
+        "bbox": [49.90, 21.78, 50.14, 22.26],
+        "max_age_days": 14,
+        "timeout_s": 300,
+        "pause_s": 5,              # przerwa między zapytaniami (uprzejmość wobec serwera)
+        "retry_pause_s": 30,
     },
 }
 USER_AGENT = "rzeszow-w-pikselach-pipeline/1.0"
@@ -284,15 +295,67 @@ def fetch_addresses(cfg):
         return None
 
 
+# ---------------------------------------------------------------- mapa OSM
+def fetch_map(cfg):
+    """Odświeża warstwy mapy. Warstwa, której nie udało się pobrać, zostaje w poprzedniej kopii.
+    Zwraca katalog cache, gdy są budynki, inaczej None (strona użyje zabudowy poglądowej)."""
+    mcfg = dict(DEFAULTS["map"], **(cfg.get("map") or {}))
+    if not mcfg.get("enabled"):
+        return None
+    cache = os.path.join(cfg["work_dir"], "cache")
+    pending = False
+    for name, query in osm.queries(mcfg["bbox"], mcfg["timeout_s"] - 10).items():
+        path = osm.layer_path(cache, name)
+        if os.path.exists(path) and time.time() - os.path.getmtime(path) < mcfg["max_age_days"] * 86400:
+            continue
+        if pending:
+            time.sleep(mcfg["pause_s"])
+        pending = True
+        for attempt in range(1, cfg["retries"] + 1):
+            try:
+                req = urllib.request.Request(mcfg["url"], data=urllib.parse.urlencode({"data": query}).encode(),
+                                             headers={"User-Agent": USER_AGENT})
+                with urllib.request.urlopen(req, timeout=mcfg["timeout_s"]) as r:
+                    raw = r.read()
+                doc = json.loads(raw)
+                if "error" in (doc.get("remark") or ""):   # przekroczony limit: dane są niepełne
+                    raise ValueError(doc["remark"].strip()[:200])
+                n_el = len(doc.get("elements", []))
+                if n_el < 100:
+                    raise ValueError(f"podejrzanie mało elementów ({n_el})")
+                tmp = path + ".part"
+                with gzip.open(tmp, "wb", compresslevel=6) as f:
+                    f.write(raw)
+                os.replace(tmp, path)
+                log.info("mapa OSM, %s: pobrano %d elementów", name, n_el)
+                break
+            except Exception as e:  # noqa: BLE001
+                if attempt < cfg["retries"]:           # Overpass często chwilowo odpowiada 429/502/504
+                    log.info("mapa OSM, %s: %s — ponawiam (%d/%d)", name, e, attempt, cfg["retries"])
+                    time.sleep(mcfg["retry_pause_s"] * attempt)
+                else:
+                    log.warning("mapa OSM, %s: %s — %s", name, e, "używam poprzedniej kopii" if os.path.exists(path) else "brak warstwy, spróbuję przy następnym uruchomieniu")
+    return cache if os.path.exists(osm.layer_path(cache, "buildings")) else None
+
+
+def map_hash(cache):
+    h = hashlib.sha256()
+    for name in osm.queries((0, 0, 0, 0), 0):
+        path = osm.layer_path(cache, name)
+        if os.path.exists(path):
+            h.update(sha256_file(path).encode())
+    return h.hexdigest()
+
+
 # ---------------------------------------------------------------- build
 def code_hash(cfg):
     h = hashlib.sha256()
-    for p in (cfg["template"], os.path.join(HERE, "prep.py"), os.path.join(HERE, "build.py")):
+    for p in (cfg["template"], os.path.join(HERE, "prep.py"), os.path.join(HERE, "build.py"), os.path.join(HERE, "osm.py")):
         h.update(sha256_file(p).encode())
     return h.hexdigest()
 
 
-def build_from(zip_path, cfg, today, addresses=None):
+def build_from(zip_path, cfg, today, addresses=None, map_cache=None):
     """Buduje stronę do pliku tymczasowego w out_dir. Zwraca (tmp_html, statystyki)."""
     os.makedirs(cfg["out_dir"], exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="rwp-") as tmp:
@@ -300,7 +363,7 @@ def build_from(zip_path, cfg, today, addresses=None):
         os.makedirs(gtfs)
         extract_txt(zip_path, gtfs)
         data_json = os.path.join(tmp, "data.json")
-        stats = prepare(gtfs, data_json, addresses)
+        stats = prepare(gtfs, data_json, addresses, map_cache)
         problems = []
         if stats["routes"] < cfg["min_routes"]:
             problems.append(f"za mało linii ({stats['routes']})")
@@ -373,7 +436,8 @@ def run(cfg, force=False):
     # 2. zbuduj z pierwszego kandydata, który przejdzie walidację i obejmuje dziś;
     #    jeśli żaden nie obejmuje dzisiejszej daty, użyj pierwszego poprawnego (z ostrzeżeniem)
     addresses = fetch_addresses(cfg)
-    ch = code_hash(cfg) + (":" + sha256_file(addresses)[:16] if addresses else "")
+    map_cache = fetch_map(cfg)
+    ch = code_hash(cfg) + (":" + sha256_file(addresses)[:16] if addresses else "") + (":" + map_hash(map_cache)[:16] if map_cache else "")
     index = os.path.join(cfg["out_dir"], "index.html")
     fallback, current_stale = None, False
     for src, path, sha in candidates:
@@ -386,7 +450,7 @@ def run(cfg, force=False):
             current_stale = True               # opublikowana paczka jest nieaktualna — szukaj dalej
             continue
         try:
-            tmp_html, stats = build_from(path, cfg, today, addresses)
+            tmp_html, stats = build_from(path, cfg, today, addresses, map_cache)
         except Exception as e:  # noqa: BLE001
             log.warning("%s: build nieudany: %s", src["name"], e)
             continue
@@ -424,8 +488,8 @@ def publish(tmp_html, stats, src, path, sha, key, state, cfg):
     archive(path, src["name"], sha, cfg)
     state["last_build_key"], state["last_build"] = key, info
     save_state(cfg["work_dir"], state)
-    log.info("zbudowano z %s: %d linii, %d kursów, %d adresów, rozkład %s–%s, %.0f KB",
-             src["name"], stats["routes"], stats["trips"], stats.get("addresses", 0), stats["start"], stats["end"],
+    log.info("zbudowano z %s: %d linii, %d kursów, %d adresów, %d budynków, rozkład %s–%s, %.0f KB",
+             src["name"], stats["routes"], stats["trips"], stats.get("addresses", 0), stats.get("buildings", 0), stats["start"], stats["end"],
              stats["html_bytes"] / 1024)
     if cfg.get("post_build") and not run_hook(cfg["post_build"], cfg, info):
         return 3
