@@ -59,5 +59,24 @@ class DiffTest(unittest.TestCase):
         self.assertGreater(drop, 0)
 
 
+class PipelineChangesTest(unittest.TestCase):
+    """pipeline.schedule_changes: porównanie z ostatnim udanym buildem, zachowane przy przebudowie tej samej wersji."""
+
+    def test_flow(self):
+        import pipeline
+        s1 = summarize(DiffTest.D)
+        s2 = copy.deepcopy(s1)
+        s2['version'] = 'test-2'
+        s2['routes']['A']['peak'] = 20
+        with tempfile.TemporaryDirectory() as d:
+            cfg = {'work_dir': d, 'out_dir': d}
+            self.assertIsNone(pipeline.schedule_changes(s1, cfg), 'pierwszy build: nie ma z czym porównać')
+            pipeline.write_changes(s1, None, cfg)
+            ch = pipeline.schedule_changes(s2, cfg)
+            self.assertEqual(ch['changed'][0]['route'], 'A')
+            pipeline.write_changes(s2, ch, cfg)
+            self.assertEqual(pipeline.schedule_changes(s2, cfg)['to'], 'test-2', 'przebudowa tej samej wersji: te same zmiany')
+
+
 if __name__ == '__main__':
     unittest.main()
