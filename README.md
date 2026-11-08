@@ -36,7 +36,7 @@ Screeny pokazują rozkład i dane OSM z 7 listopada 2026.
 | `pipeline.example.json` | przykładowa konfiguracja — skopiuj do `pipeline.json`, jeśli chcesz coś zmienić |
 | `prep.py` | GTFS → kompaktowy `data.json` (rzutowanie, upraszczanie tras, wzorce kursów) |
 | `osm.py` | warstwy OpenStreetMap → kompaktowa mapa (budynki, teren, woda, drogi, drzewa) |
-| `dem.py` | siatka wysokości terenu (Copernicus DEM przez Open-Meteo) |
+| `dem.py` | siatka wysokości terenu z kafli Terrain Tiles (AWS Open Data) |
 | `diff.py` | porównanie dwóch wersji rozkładu → `dist/changes.json` |
 | `build.py` | skleja moduły z `src/`, wkleja dane (gzip + base64), kopiuje manifest, service worker i ikony |
 | `src/index.html` | szablon strony; dołącza `src/style.css` i moduły `src/js/*.js` (renderer, UI, planer, pogoda…) |
@@ -207,8 +207,8 @@ Bez danych OSM (np. `"map": {"enabled": false}`) strona wraca do zabudowy poglą
   Wschód i zachód słońca są z prognozy. Efekty działają, gdy symulacja jest blisko teraz (±3 h).
 - **Pory roku** z daty symulacji: liście przebarwiają się od połowy września, zimą trawa jest sucha, a śnieg leży według
   grubości pokrywy z prognozy. W ustawieniach można wymusić porę roku albo wyłączyć pogodę.
-- **Rzeźba terenu:** siatka wysokości co 200 m (Copernicus DEM GLO-90 przez API elevation Open-Meteo), pobierana raz
-  i trzymana w `work/cache/dem.json.gz`. Wysokość dodają shadery, więc ten sam plik danych działa też płasko
+- **Rzeźba terenu:** siatka wysokości co 150 m z kafli [Terrain Tiles](https://registry.opendata.aws/terrain-tiles/)
+  (AWS Open Data, format Terrarium, kilkanaście kafli PNG na obszar sieci), pobierana raz i trzymana w `work/cache/dem.json.gz`. Wysokość dodają shadery, więc ten sam plik danych działa też płasko
   (ustawienie „Rzeźba terenu”: wł., ×2, płasko).
 - **Dachy dwuspadowe** na niskich, prostokątnych domach jednorodzinnych.
 - **🔥 Częstotliwość** (lista linii albo `H`): trasy w kolorze liczby odjazdów na godzinę o tej porze.
@@ -264,8 +264,9 @@ Mapa i adresy: © współtwórcy OpenStreetMap, licencja ODbL — https://www.op
 Zbudowana strona zawiera bazę danych pochodną od OSM; jej udostępnianie podlega ODbL (podanie źródła, ta sama licencja dla bazy).
 
 Pogoda: [Open-Meteo.com](https://open-meteo.com/), CC BY 4.0.
-Wysokości terenu: Copernicus DEM GLO-90 przez API elevation Open-Meteo
-(© DLR e.V. 2010–2014 i © Airbus Defence and Space GmbH 2014–2018, w ramach programu Copernicus UE i ESA).
+Wysokości terenu: [Terrain Tiles](https://github.com/tilezen/joerd/blob/master/docs/attribution.md) (Mapzen, AWS Open Data).
+W Polsce źródłem jest głównie EU-DEM („Produced using Copernicus data and information funded by the European Union — EU-DEM layers”)
+oraz SRTM (NASA).
 
 Rozkład: ZTM Rzeszów — https://otwartedane.erzeszow.pl/dataset/rozklady-jazdy-gtfs,
 w opracowaniu kmrzeszow.live (zapasowo: mkuran.pl). Dane zostały przetworzone.

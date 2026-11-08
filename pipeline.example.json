@@ -28,8 +28,9 @@
   },
   "dem": {
     "enabled": true,
-    "url": "https://api.open-meteo.com/v1/elevation",
-    "step_m": 200
+    "url": "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",
+    "zoom": 11,
+    "step_m": 150
   },
   "map": {
     "enabled": true,
