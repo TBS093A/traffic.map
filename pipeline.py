@@ -16,7 +16,6 @@ Użycie:  python3 pipeline.py [--config pipeline.json] [--force] [--verbose]
 """
 import argparse
 import datetime as dt
-import email.utils
 import gzip
 import hashlib
 import json

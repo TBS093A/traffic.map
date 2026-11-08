@@ -64,14 +64,3 @@ function decodeLink(hash) {
   if (q.has('speed')) out.speed = +q.get('speed');
   return out;
 }
-
-/* ---- ulubione: przystanki i trasy planera, w pamięci przeglądarki ---- */
-const FAV = { list: store.get('favs', []) };   // { type: 'stop', name } | { type: 'plan', from, to, label }
-const favSave = () => store.set('favs', FAV.list);
-const favKey = f => f.type === 'stop' ? 's|' + f.name : 'p|' + f.from + '|' + f.to;
-const isFav = f => FAV.list.some(x => favKey(x) === favKey(f));
-function favToggle(f) {
-  const k = favKey(f), i = FAV.list.findIndex(x => favKey(x) === k);
-  if (i >= 0) FAV.list.splice(i, 1); else FAV.list.push(f);
-  favSave(); return i < 0;
-}

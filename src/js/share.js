@@ -1,4 +1,4 @@
-/* ======================= LINKI, UDOSTĘPNIANIE, ULUBIONE (UI) ======================= */
+/* ======================= LINKI I UDOSTĘPNIANIE (UI) ======================= */
 function toastFor(msg, ms = 2500) { toast(msg); clearTimeout(toastFor.t); toastFor.t = setTimeout(() => toast(''), ms); }
 
 // bieżący stan widoku do linku; czas symulacji tylko wtedy, gdy różni się od teraz
@@ -44,41 +44,4 @@ async function shareView() {
   catch (e) { toastFor(url, 8000); }
 }
 
-/* ---- ulubione ---- */
-const favStop = si => ({ type: 'stop', name: S.groups[S.stopGroup[si]].name });
-const favPlan = () => ({ type: 'plan', from: encodePlace(plan.fromP), to: encodePlace(plan.toP), label: plan.fromP.label + ' → ' + plan.toP.label });
-const favBtn = f => `<button data-act="fav" title="${isFav(f) ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}" aria-pressed="${isFav(f)}">${isFav(f) ? '★' : '☆'}</button>`;
 const shareBtn = () => '<button data-act="share" title="Udostępnij link do tego widoku">🔗 Udostępnij</button>';
-function toggleFavCurrent() {
-  const f = selStop >= 0 ? favStop(selStop) : plan.sel >= 0 ? favPlan() : null; if (!f) return;
-  toastFor(favToggle(f) ? 'Dodano do ulubionych ⭐' : 'Usunięto z ulubionych'); lastSheet = 0; renderSheet();
-}
-function renderFavs() {
-  const w = warsaw(simMs()), box = $('#favList');
-  if (!FAV.list.length) { box.innerHTML = '<p class="note">Nic tu jeszcze nie ma. Gwiazdka ☆ na tablicy przystanku albo w wyznaczonej trasie dodaje ją do ulubionych.</p>'; return; }
-  let html = '<ul class="list">';
-  FAV.list.forEach((f, i) => {
-    if (f.type === 'stop') {
-      const g = groupByName(f.name);
-      if (!g) { html += `<li class="past" data-fi="${i}"><span class="grow">🚏 ${esc(f.name)}<br><span class="mut">brak w obecnym rozkładzie</span></span><button data-fdel="${i}" title="Usuń">✕</button></li>`; return; }
-      const deps = departures(g.members[0], w, 5400).slice(0, 4);
-      const next = deps.map(d => `${chip(S.trips[d.ti].route)}<span class="mut">${Math.max(0, Math.round((d.dep - w.sec) / 60))}′</span>`).join(' ');
-      html += `<li data-fi="${i}"><span class="grow">🚏 <b>${esc(g.name)}</b><br>${next || '<span class="mut">brak odjazdów w ciągu 1,5 h</span>'}</span><button data-fdel="${i}" title="Usuń">✕</button></li>`;
-    } else html += `<li data-fi="${i}"><span class="grow">🧭 <b>${esc(f.label)}</b><br><span class="mut">wyszukaj połączenie od teraz</span></span><button data-fdel="${i}" title="Usuń">✕</button></li>`;
-  });
-  box.innerHTML = html + '</ul><p class="note">Ulubione są zapisane tylko w tej przeglądarce.</p>';
-}
-function openFavs() { renderFavs(); openOv('favOv'); }
-$('#bFav').onclick = openFavs;
-$('#favList').addEventListener('click', e => {
-  const del = e.target.closest('[data-fdel]');
-  if (del) { FAV.list.splice(+del.dataset.fdel, 1); favSave(); renderFavs(); lastSheet = 0; return; }
-  const li = e.target.closest('[data-fi]'); if (!li) return;
-  const f = FAV.list[+li.dataset.fi];
-  if (f.type === 'stop') { const g = groupByName(f.name); if (!g) return; focusGroup(g.id); }
-  else {
-    const a = decodePlace(f.from), b = decodePlace(f.to); if (!a || !b) { toastFor('Tego miejsca nie ma w obecnych danych'); return; }
-    plan.fromP = a; plan.toP = b; $('#pTime').value = fmtT(warsaw(simMs()).sec); syncPlanFields(); runPlan(); fitPlan();
-  }
-  $('#favOv').classList.remove('show');
-});

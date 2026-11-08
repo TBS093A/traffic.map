@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#141622">
+<link rel="icon" href="data:,">
 <title>Rzeszów w pikselach — komunikacja miejska</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -32,9 +33,7 @@
   <button id="bSearch" title="Szukaj (/)">🔍</button>
   <button id="bLines" title="Linie">🚌</button>
   <button id="bStops" title="Przystanki">🚏</button>
-  <button id="bPlan" title="Wyznacz trasę (P)">🧭</button>
-  <button id="bFav" title="Ulubione (F)">⭐</button>
-  <button id="bSet" title="Ustawienia">⚙</button>
+  <button id="bPlan" title="Wyznacz trasę (P)">🧭</button>  <button id="bSet" title="Ustawienia">⚙</button>
 </div>
 <div id="nav">
   <button id="bRotL" title="Obróć (Q)">⟲</button>
@@ -70,11 +69,6 @@
   <div class="pf"><label>Dokąd</label><input type="text" id="pTo" placeholder="adres, ulica albo przystanek" autocomplete="off" spellcheck="false"><div class="sug" id="sTo"></div></div>
   <div class="btnrow"><button id="pSwap" title="Zamień">⇅</button><input type="time" id="pTime" style="width:110px"><button id="pNow">Teraz</button><button id="pGo" class="on" style="flex:1">Szukaj połączeń</button></div>
   <div id="pRes"></div>
-</div></div>
-
-<div id="favOv" class="overlay"><div class="panel">
-  <h3>Ulubione <button data-close="favOv" style="min-height:32px;width:34px;padding:0">✕</button></h3>
-  <div id="favList"></div>
 </div></div>
 
 <div id="setOv" class="overlay"><div class="panel">
@@ -127,7 +121,7 @@
 /*@include js/planner.js*/
 /*@include js/plan-ui.js*/
 /*@include js/links.js*/
-/*@include js/favorites.js*/
+/*@include js/share.js*/
 /*@include js/main.js*/
 </script>
 </body>

@@ -84,7 +84,7 @@ function stopSheet(si) {
   return `<button class="close" data-act="close">✕</button>
   <h2>🚏 ${esc(grp.name)}</h2><div class="sub">${multi ? grp.members.length + ' słupki · ' : ''}odjazdy w ciągu godziny · ${routes.map(r => chip(r)).join(' ')}</div>
   ${tabs}
-  <div class="btnrow"><button data-act="planfrom">🧭 Stąd</button><button data-act="planto">🧭 Dotąd</button>${favBtn(favStop(si))}${shareBtn()}</div>
+  <div class="btnrow"><button data-act="planfrom">🧭 Stąd</button><button data-act="planto">🧭 Dotąd</button>${shareBtn()}</div>
   ${fbar}
   <ul class="list">${rows || `<li class="past">${stopFilter === 'act' ? 'Teraz żaden autobus nie jedzie w stronę tego przystanku.' : 'Brak odjazdów w najbliższej godzinie.'}</li>`}</ul>`;
 }
@@ -122,7 +122,6 @@ $('#sheet').addEventListener('click', e => {
   const pp = e.target.closest('[data-act="planprev"]'); if (pp) { planBack(); return; }
   const sd = e.target.closest('[data-side]'); if (sd) { selSide = +sd.dataset.side; lastSheet = 0; renderSheet(); return; }
   const a = e.target.closest('[data-act],[data-stop],[data-trip]'); if (!a) return;
-  if (a.dataset.act === 'fav') { toggleFavCurrent(); return; }
   if (a.dataset.act === 'share') { shareView(); return; }
   if (a.dataset.act === 'close') { select({ route: -1 }); return; }
   if (a.dataset.act === 'planclose') { plan.sel = -1; select({ route: -1 }); return; }
@@ -208,9 +207,7 @@ addEventListener('keydown', e => {
   else if (k === 'escape') select({ route: -1 });
   else if (k === 'l') openLines();
   else if (k === '/') { e.preventDefault(); openSearch(); }
-  else if (k === 'p') openPlanner();
-  else if (k === 'f') openFavs();
-});
+  else if (k === 'p') openPlanner();});
 $('#bRotL').onclick = () => rot(-1); $('#bRotR').onclick = () => rot(1);
 $('#bZin').onclick = () => zoomAt(innerWidth / 2, innerHeight / 2, .7); $('#bZout').onclick = () => zoomAt(innerWidth / 2, innerHeight / 2, 1.4);
 function syncSpeedBtns() { document.querySelectorAll('#speeds [data-speed]').forEach(b => b.classList.toggle('on', +b.dataset.speed === clock.speed)); }

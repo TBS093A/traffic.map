@@ -1,0 +1,19 @@
+{
+  "name": "rzeszow-w-pikselach",
+  "private": true,
+  "description": "Izometryczna mapa pixel-art komunikacji miejskiej w Rzeszowie",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs && python3 -m unittest discover -s tests",
+    "e2e": "node --test --test-concurrency=1 tests/e2e/*.e2e.mjs",
+    "screenshots": "node tests/e2e/screenshots.mjs",
+    "serve": "node proxy.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}

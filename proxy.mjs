@@ -79,7 +79,7 @@ export function feedToJson(buf) {
   return { timestamp: msg.header?.timestamp ?? null, vehicles };
 }
 
-// ---------- serwer ----------
+// ---------- pobieranie kanału ----------
 let latest = { timestamp: null, vehicles: [], error: 'jeszcze nie pobrano' };
 async function poll() {
   try {
@@ -90,19 +90,53 @@ async function poll() {
   } catch (e) { latest = { ...latest, error: String(e.message || e) }; console.error('błąd pobierania:', e.message); }
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
-  if (!FEED_URL) { console.error('Ustaw FEED_URL (adres kanału Vehicle Positions .pb).'); process.exit(1); }
-  poll(); setInterval(poll, POLL_MS);
-  http.createServer(async (req, res) => {
+// ---------- serwer ----------
+// Strona i pliki obok niej (manifest, service worker, ikony) z katalogu PAGE; nic spoza niego.
+const DIST = path.dirname(PAGE);
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
+export const SECURITY_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'no-referrer',
+  'Cross-Origin-Opener-Policy': 'same-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(self)',
+  'Content-Security-Policy': [
+    "default-src 'self'", "script-src 'self' 'unsafe-inline'", "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src https://fonts.gstatic.com", "img-src 'self' data: blob:", "connect-src 'self' https: http://localhost:* http://127.0.0.1:*",
+    "worker-src 'self'", "manifest-src 'self'", "frame-ancestors 'none'", "base-uri 'none'", "form-action 'none'", "object-src 'none'",
+  ].join('; '),
+};
+// ścieżka z adresu -> plik w DIST albo null (bez wychodzenia poza katalog, bez plików ukrytych)
+export function staticPath(url, dist = DIST) {
+  let p; try { p = decodeURIComponent(new URL(url, 'http://x').pathname); } catch { return null; }
+  if (p === '/') p = '/index.html';
+  if (p.split('/').some(s => s.startsWith('.')) || !TYPES[path.extname(p)]) return null;
+  const f = path.resolve(dist, '.' + p);
+  return f.startsWith(path.resolve(dist) + path.sep) ? f : null;
+}
+export function handler(state = () => latest) {
+  return async (req, res) => {
     const cors = { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' };
-    if (req.url.startsWith('/vehicles.json')) {
-      res.writeHead(200, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
-      return res.end(JSON.stringify(latest));
+    if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405, { ...SECURITY_HEADERS, Allow: 'GET, HEAD' }); return res.end(); }
+    const url = req.url || '/';
+    if (url.startsWith('/vehicles.json')) {
+      res.writeHead(200, { ...SECURITY_HEADERS, ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+      return res.end(JSON.stringify(state()));
     }
-    if (req.url === '/' || req.url.startsWith('/index.html')) {
-      try { const html = await readFile(PAGE); res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); return res.end(html); }
-      catch { res.writeHead(404); return res.end('Brak pliku ' + PAGE); }
+    const f = staticPath(url);
+    if (f) {
+      try {
+        const body = await readFile(f), ext = path.extname(f);
+        res.writeHead(200, { ...SECURITY_HEADERS, 'Content-Type': TYPES[ext], 'Cache-Control': ext === '.html' || f.endsWith('sw.js') ? 'no-cache' : 'max-age=3600' });
+        return res.end(req.method === 'HEAD' ? undefined : body);
+      } catch { /* brak pliku: 404 niżej */ }
     }
-    res.writeHead(404, cors); res.end();
-  }).listen(PORT, () => console.log(`Proxy: http://localhost:${PORT}/  (JSON: /vehicles.json)`));
+    res.writeHead(404, { ...SECURITY_HEADERS, 'Content-Type': 'text/plain; charset=utf-8' }); res.end('Nie ma takiej strony');
+  };
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  if (FEED_URL) { poll(); setInterval(poll, POLL_MS); }
+  else { latest = { timestamp: null, vehicles: [], error: 'proxy działa bez FEED_URL: tylko rozkład' }; console.log('Bez FEED_URL: serwuję samą stronę, bez pozycji na żywo.'); }
+  http.createServer(handler()).listen(PORT, () => console.log(`Serwer: http://localhost:${PORT}/  (JSON: /vehicles.json)`));
 }

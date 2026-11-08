@@ -1,0 +1,7 @@
+line-length = 160
+target-version = "py39"
+
+[lint]
+select = ["E", "F", "W", "B"]
+# E731: krótkie lambdy są tu czytelniejsze niż def; E741: x, l, O w kodzie geometrii
+ignore = ["E501", "E731", "E741"]

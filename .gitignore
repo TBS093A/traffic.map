@@ -2,3 +2,5 @@ work/
 dist/
 pipeline.json
 __pycache__/
+node_modules/
+dist-test/

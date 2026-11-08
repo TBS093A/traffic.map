@@ -1,0 +1,83 @@
+# Release z grupy zmergowanych PR-ów: grupą jest milestone.
+# Przypisz PR-y do milestone'a nazwanego jak wersja (np. v1.2.0) i zamknij go: powstaje tag, wydanie
+# z notatkami pogrupowanymi według etykiet i gotowa strona (index.html z aktualnymi danymi) jako załącznik.
+# Ręcznie: Actions → release → Run workflow, z nazwą milestone'a.
+name: release
+
+on:
+  milestone:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      milestone:
+        description: "Nazwa milestone'a (= wersja, np. v1.2.0)"
+        required: true
+      draft:
+        description: "Tylko szkic wydania"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      MILESTONE: ${{ github.event.milestone.title || inputs.milestone }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Wersja z nazwy milestone'a
+        id: v
+        run: |
+          if ! [[ "$MILESTONE" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::Milestone '$MILESTONE' nie wygląda jak wersja (vX.Y.Z)"; exit 1
+          fi
+          if git rev-parse -q --verify "refs/tags/$MILESTONE" > /dev/null; then
+            echo "::error::Tag $MILESTONE już istnieje"; exit 1
+          fi
+          echo "version=$MILESTONE" >> "$GITHUB_OUTPUT"
+          echo "prev=$(git describe --tags --abbrev=0 2>/dev/null || true)" >> "$GITHUB_OUTPUT"
+      - name: PR-y z milestone'a
+        run: |
+          gh pr list --state merged --limit 500 --search "milestone:\"$MILESTONE\"" \
+            --json number,title,labels,author,url > prs.json
+          echo "PR-ów: $(python3 -c 'import json; print(len(json.load(open("prs.json"))))')"
+      - name: Notatki
+        run: python3 .github/scripts/release_notes.py prs.json "${{ steps.v.outputs.version }}" "${{ steps.v.outputs.prev }}" > notes.md
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Cache danych (GTFS, OSM, adresy)
+        uses: actions/cache@v6
+        with:
+          path: work/cache
+          key: rwp-data-${{ github.run_id }}
+          restore-keys: rwp-data-
+      - name: Testy
+        run: python3 -m unittest discover -s tests
+      - name: Strona z aktualnymi danymi
+        run: python3 pipeline.py --force -v
+      - name: Paczka
+        run: |
+          cd dist
+          zip -9 -r "../rzeszow-w-pikselach-${{ steps.v.outputs.version }}.zip" . -x '.*'
+      - name: Wydanie
+        run: |
+          gh release create "${{ steps.v.outputs.version }}" \
+            --target "${{ github.sha }}" \
+            --title "Rzeszów w pikselach ${{ steps.v.outputs.version }}" \
+            --notes-file notes.md \
+            ${{ inputs.draft && '--draft' || '' }} \
+            dist/index.html dist/build-info.json "rzeszow-w-pikselach-${{ steps.v.outputs.version }}.zip"

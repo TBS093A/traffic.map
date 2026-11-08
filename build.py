@@ -65,6 +65,37 @@ def build(data_json, template, out):
     return len(html)
 
 
+STATIC = os.path.join(HERE, 'src', 'static')
+TEXT_EXT = ('.js', '.json', '.webmanifest', '.svg', '.html', '.txt')
+
+
+def write_extras(out_dir, version='dev'):
+    """Kopiuje pliki z src/static (manifest, service worker, ikony) obok strony.
+
+    W plikach tekstowych __VERSION__ zamienia się na wersję buildu (np. skrót danych),
+    dzięki czemu service worker wie, że jest nowa strona do pobrania.
+    """
+    written = []
+    if not os.path.isdir(STATIC):
+        return written
+    for name in sorted(os.listdir(STATIC)):
+        src = os.path.join(STATIC, name)
+        if not os.path.isfile(src) or name.startswith('.'):
+            continue
+        dst = os.path.join(out_dir, name)
+        if name.endswith(TEXT_EXT):
+            with open(src, encoding='utf-8') as f:
+                body = f.read().replace('__VERSION__', version)
+            with open(dst + '.tmp', 'w', encoding='utf-8') as f:
+                f.write(body)
+        else:
+            with open(src, 'rb') as f, open(dst + '.tmp', 'wb') as g:
+                g.write(f.read())
+        os.replace(dst + '.tmp', dst)
+        written.append(dst)
+    return written
+
+
 if __name__ == '__main__':
     a = sys.argv[1:] + [None] * 3
     print(build(a[0] or 'data.json', a[1] or DEFAULT_TEMPLATE, a[2] or 'index.html'), 'bajtów')
