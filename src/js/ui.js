@@ -8,7 +8,7 @@ function updateUI(now) {
   $('#clock').textContent = fmtT(w.sec) + ':' + String(Math.floor(w.sec % 60)).padStart(2, '0');
   $('#day').textContent = dayFmt.format(new Date(ms)) + (simState.fallback ? ' · rozkład wzorcowy' : '') + (live.map.size && Date.now() - live.last < 90000 ? ' · NA ŻYWO' : '');
   if (now - lastSheet > 1000 && !sheetPressed) { lastSheet = now; renderSheet(); }
-  syncLink(now);
+  syncLink(now); syncAlertsBtn(); checkReminders(w.sec);
 }
 
 // arkusz odświeża się co sekundę: podmieniamy treść tylko gdy się zmieniła, żeby przyciski nie znikały spod palca w trakcie kliknięcia
@@ -36,13 +36,14 @@ function tripSheet(ti) {
   let rows = '';
   const from = Math.max(0, kNow - 1);
   for (let k = from; k < tr.stops.length; k++) {
-    const si = tr.stops[k], tm = tr.times[2 * k + 1] + (b && b.live ? b.delay : 0);
+    const si = tr.stops[k], tm = tr.times[2 * k + 1] + (liveDelay(tr, k) ?? (b && b.live ? b.delay : 0));
     const cls = k < kNow ? 'past' : (k === kNow ? 'now' : '');
     rows += `<li class="${cls}" data-stop="${si}"><span class="t">${fmtT(tm)}</span><span class="grow">${esc(D.stops[si][2])}</span></li>`;
   }
   return `<button class="close" data-act="close">✕</button>
   <h2>${chip(tr.route)} → ${esc(tr.head)}</h2>
-  <div class="sub">${esc(r.name || '')}${tr.brig ? ' · brygada ' + esc(tr.brig) : ''}<br>${status}</div>
+  <div class="sub">${esc(r.name || '')}${tr.brig ? ' · brygada ' + esc(tr.brig) : ''}<br>${isCanceled(tr) ? '<b class="warn">kurs odwołany</b>' : status}</div>
+  ${alertsHtml(alertsFor({ route: tr.route, trip: tr.id }))}
   <div class="btnrow"><button data-act="follow" class="${follow ? 'on' : ''}">${follow ? 'Śledzę' : 'Śledź'}</button><button data-act="route" data-r="${tr.route}">Cała linia ${esc(r.n)}</button><button data-act="fit">Pokaż trasę</button>${shareBtn()}</div>
   <ul class="list">${rows}</ul>`;
 }
@@ -59,9 +60,9 @@ function departuresOne(si, w, horizon) {
     const ti = Math.floor(code / 256), k = code % 256, tr = S.trips[ti];
     if (k === tr.stops.length - 1) continue;
     let off; if (svT.has(tr.service)) off = 0; else if (svY.has(tr.service)) off = -86400; else continue;
-    const lv = live.map.get(tr.id), delay = lv ? lv.delay : 0;
+    const ld = liveDelay(tr, k), delay = ld ?? 0;
     const dep = tr.times[2 * k + 1] + off + delay;
-    if (dep >= w.sec - 30 && dep <= w.sec + horizon) res.push({ ti, k, dep, live: !!lv, delay });
+    if (dep >= w.sec - 30 && dep <= w.sec + horizon) res.push({ ti, k, dep, live: ld !== null, delay, canceled: isCanceled(tr) });
   }
   return res.sort((a, b) => a.dep - b.dep).slice(0, 40);
 }
@@ -75,7 +76,8 @@ function stopSheet(si) {
   const multi = grp.members.length > 1;
   const rows = deps.map(d => { const tr = S.trips[d.ti], m = Math.round((d.dep - w.sec) / 60), b = onRoad.get(d.ti), left = b && b.k <= d.k ? d.k - b.k : -1;
     const go = left < 0 ? '' : `<span class="go">${left === 0 ? (b.at ? '● na przystanku' : '● dojeżdża') : `● w drodze · ${left} ${left === 1 ? 'przystanek' : left % 10 >= 2 && left % 10 <= 4 && (left % 100 < 10 || left % 100 >= 20) ? 'przystanki' : 'przystanków'} stąd`}</span>`;
-    return `<li data-trip="${d.ti}" class="${left >= 0 ? 'act' : ''}"><span class="t">${fmtT(d.dep)}</span>${chip(tr.route)}<span class="grow">${esc(tr.head)}${go ? '<br>' + go : ''}</span>${multi && selSide < 0 ? `<span class="pl">${esc(S.side[d.si].plat)}</span>` : ''}<span class="mut">${m <= 0 ? 'teraz' : 'za ' + m + ' min'}${d.live ? ' ●' : ''}</span></li>`; }).join('');
+    const when = d.canceled ? '<b class="warn">odwołany</b>' : (m <= 0 ? 'teraz' : 'za ' + m + ' min') + (d.live ? (Math.abs(d.delay) >= 60 ? ` <span class="${d.delay > 0 ? 'warn' : ''}">${d.delay > 0 ? '+' : '−'}${Math.round(Math.abs(d.delay) / 60)}′</span>` : '') + ' ●' : '');
+    return `<li data-trip="${d.ti}" class="${left >= 0 ? 'act' : ''}${d.canceled ? ' past' : ''}"><span class="t">${fmtT(d.dep)}</span>${chip(tr.route)}<span class="grow">${esc(tr.head)}${go ? '<br>' + go : ''}</span>${multi && selSide < 0 ? `<span class="pl">${esc(S.side[d.si].plat)}</span>` : ''}<span class="mut">${when}</span></li>`; }).join('');
   const fbar = `<div class="fbar"><button data-sf="all" class="${stopFilter === 'all' ? 'on' : ''}">Wszystkie odjazdy</button><button data-sf="act" class="${stopFilter === 'act' ? 'on' : ''}">W drodze (${active.length})</button></div>`;
   const tabs = multi ? `<div class="sides"><button data-side="-1" class="${selSide < 0 ? 'on' : ''}">Obie strony</button>${grp.members.map(m => { const sd = S.side[m];
       return `<button data-side="${m}" class="${selSide === m ? 'on' : ''}"><b>${esc(sd.plat)}</b> ${esc(sideText(m))}${sd.next && !sd.arrOnly ? `<small>następny: ${esc(sd.next)}</small>` : ''}</button>`; }).join('')}</div>`
@@ -83,6 +85,7 @@ function stopSheet(si) {
   const routes = selSide >= 0 ? S.side[selSide].routes : grp.routeList;
   return `<button class="close" data-act="close">✕</button>
   <h2>🚏 ${esc(grp.name)}</h2><div class="sub">${multi ? grp.members.length + ' słupki · ' : ''}odjazdy w ciągu godziny · ${routes.map(r => chip(r)).join(' ')}</div>
+  ${alertsHtml(alertsFor({ stops: selSide >= 0 ? [selSide] : grp.members, routes }))}
   ${tabs}
   <div class="btnrow"><button data-act="planfrom">🧭 Stąd</button><button data-act="planto">🧭 Dotąd</button><button data-act="timetable">📅 Rozkład</button>${shareBtn()}</div>
   ${fbar}
@@ -95,6 +98,7 @@ function routeSheet(ri) {
     return `<li data-trip="${b.ti}">${chip(ri)}<span class="grow">→ ${esc(tr.head)}</span><span class="mut">${b.at ? 'na przyst.' : 'dalej:'} ${esc(D.stops[ns][2])}</span></li>`; }).join('');
   return `<button class="close" data-act="close">✕</button>
   <h2>${chip(ri)} ${esc(r.name || '')}</h2><div class="sub">${mine.length ? `Na trasie: ${mine.length} ${mine.length === 1 ? 'autobus' : (mine.length % 10 >= 2 && mine.length % 10 <= 4 && (mine.length % 100 < 10 || mine.length % 100 >= 20)) ? 'autobusy' : 'autobusów'}` : 'Teraz brak autobusów tej linii na trasie.'}</div>
+  ${alertsHtml(alertsFor({ route: ri }))}
   <div class="btnrow"><button data-act="fit">Pokaż trasę</button>${shareBtn()}</div>
   <ul class="list">${rows}</ul>`;
 }
@@ -121,9 +125,11 @@ $('#sheet').addEventListener('click', e => {
   const sf = e.target.closest('[data-sf]'); if (sf) { stopFilter = sf.dataset.sf; store.set('stopFilter', stopFilter); lastSheet = 0; renderSheet(); return; }
   const pp = e.target.closest('[data-act="planprev"]'); if (pp) { planBack(); return; }
   const sd = e.target.closest('[data-side]'); if (sd) { selSide = +sd.dataset.side; lastSheet = 0; renderSheet(); return; }
+  const rm = e.target.closest('[data-remind]'); if (rm && plan.sel >= 0) { toggleReminder(plan.options[plan.sel], +rm.dataset.remind); return; }
   const a = e.target.closest('[data-act],[data-stop],[data-trip]'); if (!a) return;
   if (a.dataset.act === 'share') { shareView(); return; }
   if (a.dataset.act === 'timetable') { openTimetable(); return; }
+  if (a.dataset.act === 'alerts') { e.preventDefault(); openAlerts(); return; }
   if (a.dataset.act === 'close') { select({ route: -1 }); return; }
   if (a.dataset.act === 'planclose') { plan.sel = -1; select({ route: -1 }); return; }
   if (a.dataset.act === 'planopts') { openOv('planOv'); renderPlanResults(); return; }

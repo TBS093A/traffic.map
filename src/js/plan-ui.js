@@ -132,6 +132,7 @@ function planSheet() {
   <h2>🧭 ${esc(plan.fromP.label)} → ${esc(plan.toP.label)}</h2>
   <div class="sub">${fmtT(o.dep)} → ${fmtT(o.arr)} · ${dur(o.arr - o.dep)} · ${o.rides === 0 ? 'pieszo' : o.transfers === 0 ? 'bez przesiadek' : o.transfers + ' ' + (o.transfers === 1 ? 'przesiadka' : 'przesiadki')}</div>
   <div class="btnrow">${plan.hist.length ? '<button data-act="planprev">↶ Poprzedni wariant</button>' : ''}<button data-act="planopts">Inne warianty</button><button data-act="planfit">Pokaż całą trasę</button>${shareBtn()}</div>
+  ${remindHtml(o)}
   <ul class="list">${rows}<li class="leg end"><span class="t">${fmtT(o.arr)}</span><span class="grow">🏁 <b>${esc(plan.toP.label)}</b></span></li></ul>`;
 }
 

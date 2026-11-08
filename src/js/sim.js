@@ -1,7 +1,7 @@
 /* ======================= STAN APLIKACJI ======================= */
 let selRoute = -1, selTrip = -1, selStop = -1, follow = false;
 let buses = [];        // {ti, x, y, dx, dy, live, delay}
-const live = { url: store.get('liveUrl', ''), map: new Map(), extra: [], timer: null, last: 0, status: '' };
+const live = { url: store.get('liveUrl', ''), map: new Map(), extra: [], timer: null, last: 0, status: '', tu: new Map(), alerts: [] };
 let hlGeo = null, hlKey = '', staticBox, stopBox, dynBox, groundV, roadV, roadCount = 0;
 const dyn = new Float32Array(1200 * 12);
 

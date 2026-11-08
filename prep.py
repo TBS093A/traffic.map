@@ -349,6 +349,8 @@ def prepare(src, out, addresses=None, map_cache=None):
                  'built': dt.datetime.now().strftime('%Y-%m-%d %H:%M')},
         'services': services, 'dates': dates,
         'routes': out_routes, 'stops': out_stops, 'shapes': out_shapes,
+        # identyfikatory GTFS: dane na żywo (TripUpdates, komunikaty) wskazują linie i słupki po nich
+        'route_ids': [r['route_id'] for r in routes], 'stop_ids': list(stop_idx),
         'patterns': patterns, 'heads': heads, 'trips': out_trips, 'streets': out_streets,
     }
     n_addr = 0

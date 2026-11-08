@@ -74,6 +74,11 @@ class PrepTest(unittest.TestCase):
         self.assertIn('Testowa', names)
         self.assertIn('Północna', names)
 
+    def test_gtfs_ids_for_realtime(self):
+        self.assertEqual(self.D['route_ids'], ['A', 'B'])
+        self.assertEqual(len(self.D['stop_ids']), len(self.D['stops']))
+        self.assertEqual(self.D['stop_ids'][0], 'W')
+
     def test_route_names(self):
         self.assertEqual([r['n'] for r in self.D['routes']], sorted(LINES))
 
