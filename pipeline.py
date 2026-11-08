@@ -38,6 +38,7 @@ from prep import prepare, REQUIRED  # noqa: E402
 from build import build, sources, write_extras, STATIC  # noqa: E402
 import osm  # noqa: E402
 from diff import summarize, compare, is_empty  # noqa: E402
+import dem  # noqa: E402
 
 DEFAULTS = {
     "sources": [
@@ -61,6 +62,13 @@ DEFAULTS = {
         "bbox": [49.90, 21.78, 50.14, 22.26],   # płd, zach, płn, wsch — obszar sieci ZTM
         "max_age_days": 14,
         "timeout_s": 200,
+    },
+    "dem": {                       # rzeźba terenu: siatka wysokości nad obszarem "map"
+        "enabled": True,
+        "url": "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",   # Terrain Tiles (AWS Open Data)
+        "zoom": 11,                # ok. 75 m na piksel; na obszar sieci kilkanaście kafli
+        "step_m": 150,
+        "pause_s": 0.2,
     },
     "map": {                       # budynki, woda, teren, drogi i drzewa z OSM
         "enabled": True,
@@ -338,6 +346,29 @@ def fetch_map(cfg):
     return cache if os.path.exists(osm.layer_path(cache, "buildings")) else None
 
 
+def fetch_dem(cfg):
+    """Siatka wysokości terenu (pobierana raz; teren się nie zmienia). Zwraca ścieżkę albo None."""
+    dcfg = dict(DEFAULTS["dem"], **(cfg.get("dem") or {}))
+    if not dcfg.get("enabled"):
+        return None
+    path = os.path.join(cfg["work_dir"], "cache", "dem.json.gz")
+    bbox = (cfg.get("map") or {}).get("bbox") or DEFAULTS["map"]["bbox"]
+    if os.path.exists(path):
+        try:
+            old = dem.load(path)
+            if old.get("bbox") == list(bbox) and (old["nx"], old["ny"]) == dem.grid_size(bbox, dcfg["step_m"]):
+                return path
+        except (OSError, ValueError, KeyError):
+            pass
+    try:
+        doc = dem.fetch(bbox, dcfg["step_m"], dcfg["url"], USER_AGENT, dcfg["pause_s"], cfg["retries"], cfg["timeout_s"], log, dcfg["zoom"])
+        dem.save(doc, path)
+        log.info("wysokości terenu: %d × %d punktów, %.0f–%.0f m n.p.m.", doc["nx"], doc["ny"], min(doc["h"]), max(doc["h"]))
+    except Exception as e:  # noqa: BLE001
+        log.warning("wysokości terenu: %s — %s", e, "używam poprzedniej kopii" if os.path.exists(path) else "teren będzie płaski")
+    return path if os.path.exists(path) else None
+
+
 def map_hash(cache):
     h = hashlib.sha256()
     for name in osm.queries((0, 0, 0, 0), 0):
@@ -351,12 +382,12 @@ def map_hash(cache):
 def code_hash(cfg):
     h = hashlib.sha256()
     static = [os.path.join(STATIC, f) for f in sorted(os.listdir(STATIC))] if os.path.isdir(STATIC) else []
-    for p in (*sources(cfg["template"]), *static, *(os.path.join(HERE, f) for f in ("prep.py", "build.py", "osm.py", "diff.py"))):
+    for p in (*sources(cfg["template"]), *static, *(os.path.join(HERE, f) for f in ("prep.py", "build.py", "osm.py", "diff.py", "dem.py"))):
         h.update(sha256_file(p).encode())
     return h.hexdigest()
 
 
-def build_from(zip_path, cfg, today, addresses=None, map_cache=None):
+def build_from(zip_path, cfg, today, addresses=None, map_cache=None, dem_path=None):
     """Buduje stronę do pliku tymczasowego w out_dir. Zwraca (tmp_html, statystyki)."""
     os.makedirs(cfg["out_dir"], exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="rwp-") as tmp:
@@ -364,7 +395,7 @@ def build_from(zip_path, cfg, today, addresses=None, map_cache=None):
         os.makedirs(gtfs)
         extract_txt(zip_path, gtfs)
         data_json = os.path.join(tmp, "data.json")
-        stats = prepare(gtfs, data_json, addresses, map_cache)
+        stats = prepare(gtfs, data_json, addresses, map_cache, dem_path)
         problems = []
         if stats["routes"] < cfg["min_routes"]:
             problems.append(f"za mało linii ({stats['routes']})")
@@ -450,7 +481,9 @@ def run(cfg, force=False):
     #    jeśli żaden nie obejmuje dzisiejszej daty, użyj pierwszego poprawnego (z ostrzeżeniem)
     addresses = fetch_addresses(cfg)
     map_cache = fetch_map(cfg)
-    ch = code_hash(cfg) + (":" + sha256_file(addresses)[:16] if addresses else "") + (":" + map_hash(map_cache)[:16] if map_cache else "")
+    dem_path = fetch_dem(cfg)
+    ch = code_hash(cfg) + (":" + sha256_file(addresses)[:16] if addresses else "") + (":" + map_hash(map_cache)[:16] if map_cache else "") \
+        + (":" + sha256_file(dem_path)[:16] if dem_path else "")
     index = os.path.join(cfg["out_dir"], "index.html")
     fallback, current_stale = None, False
     for src, path, sha in candidates:
@@ -463,7 +496,7 @@ def run(cfg, force=False):
             current_stale = True               # opublikowana paczka jest nieaktualna — szukaj dalej
             continue
         try:
-            tmp_html, stats = build_from(path, cfg, today, addresses, map_cache)
+            tmp_html, stats = build_from(path, cfg, today, addresses, map_cache, dem_path)
         except Exception as e:  # noqa: BLE001
             log.warning("%s: build nieudany: %s", src["name"], e)
             continue

@@ -18,9 +18,11 @@ function render(now) {
   gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.disable(gl.BLEND);
   const t = now / 1000;
   const common = P => { gl.useProgram(P.p); gl.uniformMatrix4fv(P.u.uVP, false, VP); gl.uniform3fv(P.u.uSun, sun.sun); gl.uniform3fv(P.u.uSunCol, sun.sunCol); gl.uniform3fv(P.u.uAmb, sun.amb); if (P.u.uNight) gl.uniform1f(P.u.uNight, sun.night); if (P.u.uTime) gl.uniform1f(P.u.uTime, t);
-    if (P.u.uSnow) gl.uniform1f(P.u.uSnow, season.snow); if (P.u.uAutumn) gl.uniform1f(P.u.uAutumn, season.autumn); if (P.u.uWinter) gl.uniform1f(P.u.uWinter, season.winter); if (P.u.uWet) gl.uniform1f(P.u.uWet, fx.wet); };
+    if (P.u.uSnow) gl.uniform1f(P.u.uSnow, season.snow); if (P.u.uAutumn) gl.uniform1f(P.u.uAutumn, season.autumn); if (P.u.uWinter) gl.uniform1f(P.u.uWinter, season.winter); if (P.u.uWet) gl.uniform1f(P.u.uWet, fx.wet); setDem(P); };
 
-  common(groundP); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, R.distTex); gl.uniform1i(groundP.u.uDist, 0); gl.uniform1f(groundP.u.uExt, EXT); gl.uniform1f(groundP.u.uTexel, 2 * cam.half / R.low[1]); gl.uniform1i(groundP.u.uReal, WORLD ? 1 : 0); gl.bindVertexArray(groundV.vao); gl.drawArrays(gl.TRIANGLES, 0, 6);
+  common(groundP); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, R.distTex); gl.uniform1i(groundP.u.uDist, 0); gl.uniform1f(groundP.u.uExt, EXT); gl.uniform1f(groundP.u.uTexel, 2 * cam.half / R.low[1]); gl.uniform1i(groundP.u.uReal, WORLD ? 1 : 0); gl.bindVertexArray(groundV.vao);
+  if (groundV.indexed) { gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(2, 64); gl.drawElements(gl.TRIANGLES, groundV.count, gl.UNSIGNED_INT, 0); gl.disable(gl.POLYGON_OFFSET_FILL); }
+  else gl.drawArrays(gl.TRIANGLES, 0, 6);
   const texel = 2 * cam.half / R.low[1];
   if (WORLD) { // teren leży w płaszczyźnie gruntu: kolejność rysowania decyduje, co jest na wierzchu
     gl.disable(gl.DEPTH_TEST);

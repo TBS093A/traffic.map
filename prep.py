@@ -140,7 +140,7 @@ def load_addresses(path, stops, radius=1500):
     return out
 
 
-def prepare(src, out, addresses=None, map_cache=None):
+def prepare(src, out, addresses=None, map_cache=None, dem_path=None):
     """Czyta GTFS z katalogu src (opcjonalnie adresy i warstwy mapy OSM), zapisuje kompaktowy JSON do out."""
     src = os.path.join(src, '')
 
@@ -366,6 +366,11 @@ def prepare(src, out, addresses=None, map_cache=None):
             data['feed']['map_source'] = 'OpenStreetMap (ODbL) ' + dt.datetime.fromtimestamp(os.path.getmtime(layer_path(map_cache, 'buildings'))).strftime('%Y-%m-%d')
         else:
             del data['map']
+    if dem_path and os.path.exists(dem_path):
+        import dem
+        data['dem'] = dem.compact(dem.load(dem_path), proj, (LAT0, LON0))
+        map_stats['dem_points'] = len(data['dem']['h'])
+        data['feed']['dem_source'] = dem.SOURCE
     with open(out, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
     return {**map_stats, 'routes': len(out_routes), 'stops': len(out_stops), 'shapes': len(out_shapes),

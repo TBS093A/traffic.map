@@ -28,7 +28,7 @@ function drawFreq(texel) {
 // --- zasięg (izochrony): kreskowane koła wokół osiągalnych słupków, promień = dojście w pozostałym czasie
 const isoP = prog(COMMON + `
 layout(location=0) in vec2 aC; layout(location=1) in vec4 iA; out vec2 vC; flat out int vB;
-void main(){ vC=aC; vB=int(iA.w+.5); gl_Position=uVP*vec4(iA.x+aC.x*iA.z, .05+.01*(3.-iA.w), -(iA.y+aC.y*iA.z), 1.); }`,
+void main(){ vC=aC; vB=int(iA.w+.5); vec2 xz=vec2(iA.x+aC.x*iA.z, -(iA.y+aC.y*iA.z)); gl_Position=uVP*vec4(xz.x, .05+.01*(3.-iA.w)+demAt(xz)+demLift(), xz.y, 1.); }`,
 COMMON + `
 in vec2 vC; flat in int vB; uniform vec3 uBand[4]; layout(location=0) out vec4 oC; layout(location=1) out vec4 oN;
 void main(){
@@ -56,7 +56,7 @@ function buildIso(times) {
 const isoColors = new Float32Array(ISO_BANDS.flatMap(b => b[1].map(c => c / 255)));
 function drawIso(sun) {
   if (!FM.iso || !FM.isoCount) return;
-  gl.useProgram(isoP.p); gl.uniformMatrix4fv(isoP.u.uVP, false, VP);
+  gl.useProgram(isoP.p); gl.uniformMatrix4fv(isoP.u.uVP, false, VP); setDem(isoP);
   gl.uniform3fv(isoP.u.uSun, sun.sun); gl.uniform3fv(isoP.u.uSunCol, sun.sunCol); gl.uniform3fv(isoP.u.uAmb, sun.amb); gl.uniform3fv(isoP.u.uBand, isoColors);
   gl.bindVertexArray(FM.isoVao); gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, FM.isoCount);
 }
