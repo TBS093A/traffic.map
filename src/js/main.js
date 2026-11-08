@@ -15,6 +15,7 @@ async function main() {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   R.cubeBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, R.cubeBuf); gl.bufferData(gl.ARRAY_BUFFER, cubeGeo(), gl.STATIC_DRAW);
+  R.prismBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, R.prismBuf); gl.bufferData(gl.ARRAY_BUFFER, prismGeo(), gl.STATIC_DRAW);
   if (D.map) buildWorld(); else staticBox = boxVAO(city.data, false);
   dynBox = boxVAO(dyn, true);
   setProgress(.92, 'Rysowanie podpisów…'); await buildAtlas();

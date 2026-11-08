@@ -9,7 +9,7 @@ function ringArea(r) { let a = 0; const n = r.length; for (let i = 0; i < n; i +
 function lineOf(a) { const pts = undelta(a), cum = [0]; for (let i = 2; i < pts.length; i += 2) cum.push(cum[cum.length - 1] + Math.hypot(pts[i] - pts[i - 2], pts[i + 1] - pts[i - 1])); return { pts, cum }; }
 
 function tileRange(x, y) { const tx = Math.floor(x / TILE), ty = Math.floor(y / TILE); return { x0: tx * TILE, x1: (tx + 1) * TILE, z0: -(ty + 1) * TILE, z1: -ty * TILE }; }
-function tileInstances(rows, lods) { // rows: [x, y, rozmiar, 12 liczb instancji]
+function tileInstances(rows, lods, geo, verts) { // rows: [x, y, rozmiar, 12 liczb instancji]
   const byTile = new Map();
   for (const r of rows) { const k = tileKey(r[0], r[1]); let t = byTile.get(k); if (!t) byTile.set(k, t = { r: tileRange(r[0], r[1]), rows: [] }); t.rows.push(r); }
   const data = new Float32Array(rows.length * 12), tiles = []; let o = 0;
@@ -19,7 +19,7 @@ function tileInstances(rows, lods) { // rows: [x, y, rozmiar, 12 liczb instancji
     for (const r of t.rows) { data.set(r[3], o * 12); o++; if (r[2] >= lods[0]) lod[1]++; if (r[2] >= lods[1]) lod[2]++; }
     tiles.push({ ...t.r, off, lod });
   }
-  return { ...boxVAO(data, false), tiles };
+  return { ...boxVAO(data, false, geo, verts), tiles };
 }
 function viewBounds() {
   const m = 250, c = [[0, 0], [innerWidth, 0], [0, innerHeight], [innerWidth, innerHeight]].map(p => screenToGround(p[0], p[1]));
@@ -31,7 +31,7 @@ function drawTiles(set, level, v) {
   for (const t of set.tiles) {
     const n = t.lod[level]; if (!n || !tileVisible(t, v)) continue;
     for (let i = 0; i < 3; i++) gl.vertexAttribPointer(2 + i, 4, gl.FLOAT, false, 48, t.off * 48 + i * 16);
-    gl.drawArraysInstanced(gl.TRIANGLES, 0, 36, n);
+    gl.drawArraysInstanced(gl.TRIANGLES, 0, set.verts, n);
   }
 }
 
@@ -44,11 +44,18 @@ function buildWorld() {
   const wallOf = (k, seed) => WALLS[k][seed % WALLS[k].length];
 
   // budynki prostokątne: obrócone prostopadłościany
-  const b = M.b, rows = new Array(b.x.length); let x = 0, y = 0;
+  const b = M.b, rows = new Array(b.x.length), roofRows = []; let x = 0, y = 0;
+  const ROOFS = ['#a8503a', '#7a3428', '#8a4a3a', '#5a4a48', '#3d4566', '#6a5a50'].map(hex3);   // dachówka, ciemna dachówka, blacha
   for (let i = 0; i < b.x.length; i++) {
     x += b.x[i]; y += b.y[i];
     const X = x / 2, Y = y / 2, l = b.l[i] / 2, w = b.w[i] / 2, h = b.h[i] / 2, k = b.k[i], seed = Math.abs(x * 31 + y) % 997, c = wallOf(k, seed);
-    rows[i] = [X, Y, important(h, k) ? 1e9 : l * w, [X, 0, -Y, b.a[i] / 2 * Math.PI / 180, l, h, w, k, c[0], c[1], c[2], seed]];
+    const ang = b.a[i] / 2 * Math.PI / 180;
+    rows[i] = [X, Y, important(h, k) ? 1e9 : l * w, [X, 0, -Y, ang, l, h, w, k, c[0], c[1], c[2], seed]];
+    // dom jednorodzinny: dach dwuspadowy z kalenicą wzdłuż dłuższego boku (OSM rzadko podaje roof:shape, więc z typu i wymiarów)
+    if (k === 7 && h <= 10 && Math.max(l, w) <= 30 && seed % 8 !== 0) {
+      const along = l >= w, L = along ? l : w, W = along ? w : l, rc = ROOFS[seed % ROOFS.length];
+      roofRows.push([X, Y, l * w, [X, h, -Y, ang + (along ? 0 : Math.PI / 2), L + .5, clamp(W * .38, 1.6, 4.5), W + .7, 13, rc[0], rc[1], rc[2], seed]]);
+    }
   }
   // mosty: pomost z podjazdami nad terenem, filary co 25 m; kładki krótsze niż 15 m zostają płaskie
   const ROAD_HW = [8, 5.5, 3.8, 2.4, 2.6], flatBridges = [[], [], [], [], []], decks = [[], [], [], [], []], PB = {};
@@ -77,7 +84,7 @@ function buildWorld() {
       rows.push([PB.x, PB.y, 1e3, [PB.x, 0, -PB.y, Math.atan2(PB.dy, PB.dx), 1.6, h, ROAD_HW[bk] * 1.3, 8, .6, .6, .58, 0]]);
     }
   }
-  const boxes = tileInstances(rows, LOD_AREA);
+  const boxes = tileInstances(rows, LOD_AREA), roofs = tileInstances(roofRows, LOD_AREA, R.prismBuf, 18);
 
   // budynki o złożonym obrysie: ściany i dach z prawdziwego kształtu
   const polys = M.p.map(([h, k, ...rs]) => {
@@ -165,8 +172,8 @@ function buildWorld() {
     return { vao, count: g.length / 7, hw, px, maxHalf, mode };
   };
   const landVao = vaoFrom(landData, [[0, 2, 4, 0], [1, 2, 4, 2]]);
-  const counts = { buildings: b.x.length + M.p.length, trees: treeRows.length - tr.length / 2 };
-  WORLD = { counts, boxes, trees: tileInstances(treeRows, LOD_TREE), mesh: { vao: meshVao, tiles: tilesM }, land: { vao: landVao.vao, count: nT },
+  const counts = { buildings: b.x.length + M.p.length, trees: treeRows.length - tr.length / 2, roofs: roofRows.length };
+  WORLD = { counts, boxes, roofs, trees: tileInstances(treeRows, LOD_TREE), mesh: { vao: meshVao, tiles: tilesM }, land: { vao: landVao.vao, count: nT },
     waterLines: [lineVao(M.w[1], 1.2, .5, 2600, 4), lineVao(M.w[0], 5, .9, 1e9, 4)],
     roads: [lineVao(M.r[3].concat(flatBridges[3]), 2.4, 0, 1400, 0), lineVao(M.r[2].concat(flatBridges[2]), 3.8, .6, 3600, 0), lineVao(M.r[4].concat(flatBridges[4]), 2.6, .7, 1e9, 3),
       lineVao(M.r[1].concat(flatBridges[1]), 5.5, .8, 1e9, 0), lineVao(M.r[0].concat(flatBridges[0]), 8, 1, 1e9, 0)],

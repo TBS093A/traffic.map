@@ -31,14 +31,14 @@ function vaoFrom(data, layout) { // layout: [[loc,size,stride,offset,divisor,buf
   for (const [loc, size, stride, off] of layout) { gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, size, gl.FLOAT, false, stride * 4, off * 4); }
   gl.bindVertexArray(null); return { vao, buf };
 }
-function boxVAO(instData, dynamic) {
+function boxVAO(instData, dynamic, geo = R.cubeBuf, verts = 36) {
   const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
-  gl.bindBuffer(gl.ARRAY_BUFFER, R.cubeBuf);
+  gl.bindBuffer(gl.ARRAY_BUFFER, geo);
   gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0);
   gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12);
   const ib = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, ib); gl.bufferData(gl.ARRAY_BUFFER, instData, dynamic ? gl.DYNAMIC_DRAW : gl.STATIC_DRAW);
   for (let i = 0; i < 3; i++) { gl.enableVertexAttribArray(2 + i); gl.vertexAttribPointer(2 + i, 4, gl.FLOAT, false, 48, i * 16); gl.vertexAttribDivisor(2 + i, 1); }
-  gl.bindVertexArray(null); return { vao, buf: ib, count: instData.length / 12 };
+  gl.bindVertexArray(null); return { vao, buf: ib, count: instData.length / 12, verts };
 }
 
 // pas drogi z listy tras: [x, z, offset x, offset z (w jednostkach pół-szerokości), poprzecznie, wzdłuż]
