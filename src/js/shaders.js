@@ -5,6 +5,20 @@ float h21(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+45.32); return fra
 float vnoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f);
   return mix(mix(h21(i),h21(i+vec2(1,0)),f.x), mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),f.x), f.y); }
 vec3 toon(vec3 n){ float d=max(dot(n,uSun),0.); d=floor(d*3.+.35)/3.; return uAmb+uSunCol*d; }
+// pora roku: liście i trawa jesienią i zimą, śnieg na poziomych powierzchniach (foliage=1: zieleń, którą wolno przebarwić)
+uniform float uSnow; uniform float uAutumn; uniform float uWinter; uniform float uWet;
+vec3 seasonal(vec3 c, vec3 n, vec2 w, float foliage){
+  float green=clamp((c.g-max(c.r,c.b))*6.,0.,1.)*foliage;
+  if(green>0.){
+    float h=h21(floor(w/7.));
+    vec3 aut=h<.45?vec3(.74,.43,.15):(h<.8?vec3(.66,.58,.2):vec3(.58,.22,.13));
+    c=mix(c,aut*(.55+.6*length(c)),uAutumn*green*(.55+.45*step(.3,h)));
+    vec3 dry=vec3(dot(c,vec3(.3,.5,.2)))*vec3(1.05,.98,.84);
+    c=mix(c,dry,uWinter*green*.75);
+  }
+  if(uSnow>0.&&n.y>.5){ float s=clamp(uSnow*1.35-vnoise(w/5.)*.55-vnoise(w/1.3)*.25,0.,1.); c=mix(c,vec3(.9,.93,.98),s); }
+  return c;
+}
 `;
 
 // --- grunt
@@ -21,7 +35,7 @@ void main(){
   float r=length(p);
   float n=vnoise(p/90.)*.6+vnoise(p/23.)*.4;
   vec3 col = n<.42?vec3(.27,.43,.23):(n<.62?vec3(.33,.5,.26):vec3(.4,.56,.29));
-  if(uReal==1){ oC=vec4(col*toon(vec3(0,1,0)),1.); oN=vec4(.5,1.,.5,1.); return; }
+  if(uReal==1){ oC=vec4(seasonal(col,vec3(0,1,0),p,1.)*toon(vec3(0,1,0)),1.); oN=vec4(.5,1.,.5,1.); return; }
   // pola uprawne poza miastem
   if(dd>200. && r>2600.){
     vec2 cell=floor(p/vec2(140.,90.)); float h=h21(cell);
@@ -35,7 +49,7 @@ void main(){
   float urban = exp(-r/2300.);
   float paveW = mix(10., 34., urban) + (vnoise(p/60.)-.5)*14.;
   if(dm < paveW || (r<900. && vnoise(p/70.) > .35)) col = mix(vec3(.66,.62,.56), vec3(.6,.57,.52), step(.6,vnoise(p/14.)));
-  oC=vec4(col*toon(vec3(0,1,0)),1.); oN=vec4(.5,1.,.5,1.);
+  oC=vec4(seasonal(col,vec3(0,1,0),p,1.)*toon(vec3(0,1,0)),1.); oN=vec4(.5,1.,.5,1.);
 }`);
 
 // --- drogi i podświetlenie trasy
@@ -58,7 +72,10 @@ void main(){
   }
   vec3 asph=vec3(.29,.28,.29);
   vec3 col = abs(vUV.x)>.8 ? vec3(.58,.56,.53) : asph;
+  col*=1.-.28*uWet;                                   // mokry asfalt ciemnieje
+  col=mix(col,vec3(.86,.88,.92),uSnow*.45*step(.45,fract(vUV.y/9.)*.6+abs(vUV.x)*.5));   // rozjeżdżony śnieg
   vec3 c = col*toon(vec3(0,1,0));
+  c += vec3(.5,.55,.65)*uWet*.12*step(.75,fract(vUV.y/13.+abs(vUV.x)*.3));          // odblask na mokrej jezdni
   float ph=abs(fract(vUV.y/34.)-.5)*34.;
   float pool=exp(-ph*ph/30.)*(1.-abs(vUV.x)*.5);
   c += vec3(1.,.78,.42)*pool*.55*uNight;
@@ -126,6 +143,7 @@ void main(){
     if(k==5) emis+=vec3(.22)*(.6+.4*sin(uTime*6.));
   } else if(k==3){ if(vLN.y>.5) col=vec3(.86,.86,.84); }
   else if(k==6){ flag=0.; emis=vec3(.95,.82,.3)*(.6+.4*sin(uTime*5.)); }
+  if(k<=3||(k>=7&&k<=12)) col=seasonal(col,n,vWP.xz,k==1?1.:0.);   // zieleń drzew się przebarwia, śnieg tylko na tym, co stoi
   oC=vec4(col*toon(n)+emis, flag>.5?1.:.5);
   oN=vec4(n*.5+.5,1.);
 }`;
@@ -179,6 +197,7 @@ void main(){
   else if(vC==14) c=mix(vec3(.66,.33,.24),vec3(.6,.3,.22),step(.6,n));
   else if(vC==15) c=vec3(.4,.39,.4);
   else { float w=step(.8,vnoise(vec2(p.x/26.+uTime*.25,p.y/7.))); c=mix(vec3(.17,.34,.54),vec3(.27,.45,.66),w); }
+  if(vC<16) c=seasonal(c,vec3(0,1,0),p,vC==13?0.:1.);   // murawa boiska zostaje zielona
   oC=vec4(c*toon(vec3(0,1,0)),1.); oN=vec4(.5,1.,.5,1.);
 }`);
 // --- post-processing: kontury, paleta, dithering, skalowanie bez wygładzania
@@ -190,6 +209,7 @@ precision highp float;
 uniform sampler2D uC; uniform sampler2D uN; uniform sampler2D uD;
 uniform int uPs; uniform ivec2 uLow; uniform int uPal; uniform int uDith; uniform int uOut; uniform float uThr;
 uniform vec3 uPalette[32]; uniform int uPalN;
+uniform float uRain; uniform float uSnowFall; uniform float uFog; uniform float uTime;   // pogoda: opady i mgła nad sceną
 out vec4 o;
 float bayer(ivec2 p){ int m[16]=int[16](0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5); return (float(m[(p.y&3)*4+(p.x&3)])+.5)/16.; }
 float dep(ivec2 p){ return texelFetch(uD, clamp(p,ivec2(0),uLow-1), 0).r; }
@@ -207,6 +227,19 @@ void main(){
       for(int i=0;i<4;i++){ ivec2 q=p+off[i]; if(dot(n,nor(q))<.6 && dep(q)>d+uThr*.15){ e=max(e,.6); } }
     }
     c.rgb*=mix(1.,.42,e);
+  }
+  vec2 fp=vec2(p);
+  if(uFog>0.) c.rgb=mix(c.rgb,vec3(.62,.64,.68),uFog*(.18+.42*fp.y/float(uLow.y)));
+  if(uRain>0.){                                         // krople: pionowe kreski w kolumnach, różna prędkość
+    float cx=floor(fp.x/2.), r=fract(sin(cx*12.9898)*43758.5453), sp=95.+r*70.;
+    float y=fract((fp.y+uTime*sp+r*400.)/(22.+r*38.));
+    if(r<uRain*.55 && y<.2) c.rgb=mix(c.rgb,vec3(.72,.78,.9),.5);
+    c.rgb*=1.-.12*uRain;
+  }
+  if(uSnowFall>0.){                                     // płatki: kwadraty 2×2 dryfujące na boki
+    vec2 q=fp+vec2(sin(uTime*.6+fp.y*.02)*5.,uTime*13.), cell=floor(q/7.), f=fract(q/7.);
+    float r=fract(sin(dot(cell,vec2(12.9898,78.233)))*43758.5453);
+    if(r<uSnowFall*.16 && f.x<.3 && f.y<.3) c.rgb=vec3(.95,.96,1.);
   }
   if(uPal==1 && c.a>.75){
     vec3 x=c.rgb; if(uDith==1) x+=(bayer(p)-.5)*.07;

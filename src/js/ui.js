@@ -273,7 +273,8 @@ function syncOpts() {
 }
 document.querySelectorAll('.seg[data-opt]').forEach(seg => seg.addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return; const k = seg.dataset.opt;
-  opt[k] = k === 'tod' ? b.dataset.v : +b.dataset.v; store.set(k, opt[k]); syncOpts();
+  opt[k] = ['tod', 'wx', 'season'].includes(k) ? b.dataset.v : +b.dataset.v; store.set(k, opt[k]); syncOpts();
+  if (k === 'wx') { if (opt.wx === 'off') renderWeather(); else startWeather(); }
 }));
 $('#setTime').addEventListener('change', e => {
   const [h, m] = e.target.value.split(':').map(Number); if (isNaN(h)) return;

@@ -9,7 +9,7 @@ const M4 = {
 };
 
 /* ======================= USTAWIENIA ======================= */
-const opt = { ps: store.get('ps', 2), pal: store.get('pal', 1), dith: store.get('dith', 1), out: store.get('out', 1), tod: store.get('tod', 'auto'), bld: store.get('bld', 1), lbl: store.get('lbl', 1) };
+const opt = { wx: store.get('wx', 'auto'), season: store.get('season', 'auto'), ps: store.get('ps', 2), pal: store.get('pal', 1), dith: store.get('dith', 1), out: store.get('out', 1), tod: store.get('tod', 'auto'), bld: store.get('bld', 1), lbl: store.get('lbl', 1) };
 
 /* ======================= WEBGL ======================= */
 const canvas = $('#c');

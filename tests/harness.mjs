@@ -9,9 +9,9 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.dirname(HERE);
-const LOGIC = ['util', 'data', 'time', 'stops', 'geocode', 'planner', 'timetable', 'links', 'frequency'];
+const LOGIC = ['util', 'data', 'time', 'stops', 'geocode', 'planner', 'timetable', 'links', 'frequency', 'weather'];
 const EXPORTS = ['S', 'prepData', 'buildStopGroups', 'buildStopSides', 'buildGeo', 'raptorIndex', 'planRoute', 'geocode', 'servicesFor',
-  'warsaw', 'ymdShift', 'fmtT', 'tripDist', 'norm', 'plan', 'timetableFor', 'encodeLink', 'decodeLink', 'reachFrom', 'routeFrequency'];
+  'warsaw', 'ymdShift', 'fmtT', 'tripDist', 'norm', 'plan', 'timetableFor', 'encodeLink', 'decodeLink', 'reachFrom', 'routeFrequency', 'parseWeather', 'wmo', 'seasonState', 'opt'];
 
 // buduje dane z fixture.py (sztuczna sieć) i zwraca obiekt D
 export function fixtureData() {

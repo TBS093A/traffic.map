@@ -5,8 +5,9 @@ const live = { url: store.get('liveUrl', ''), map: new Map(), extra: [], timer: 
 let hlGeo = null, hlKey = '', staticBox, stopBox, dynBox, groundV, roadV, roadCount = 0;
 const dyn = new Float32Array(1200 * 12);
 
-function sunState(month, sec) {
-  const RS = [[7.5,15.9],[6.9,16.8],[5.9,17.6],[5.8,19.4],[4.9,20.2],[4.4,20.7],[4.6,20.6],[5.3,19.9],[6.0,18.8],[6.8,17.6],[6.6,15.9],[7.3,15.5]][month - 1];
+function sunState(month, sec, ymd) {
+  // wschód i zachód: z prognozy pogody na ten dzień, a bez niej średnie dla miesiąca
+  const RS = WX.days[ymd] || [[7.5,15.9],[6.9,16.8],[5.9,17.6],[5.8,19.4],[4.9,20.2],[4.4,20.7],[4.6,20.6],[5.3,19.9],[6.0,18.8],[6.8,17.6],[6.6,15.9],[7.3,15.5]][month - 1];
   const h = sec / 3600;
   let night = 1 - smooth(RS[0] - .5, RS[0] + .7, h) * (1 - smooth(RS[1] - .7, RS[1] + .5, h));
   if (opt.tod === 'day') night = 0; if (opt.tod === 'night') night = 1;
@@ -14,10 +15,11 @@ function sunState(month, sec) {
   const az = lerp(-1.3, 1.3, dayF), el = .25 + .6 * Math.sin(Math.PI * dayF);
   const sun = [-Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)];
   const golden = Math.max(0, 1 - Math.abs(night - .5) * 2.4);
-  const amb = [lerp(.56, .2, night) + golden * .1, lerp(.58, .23, night) + golden * .03, lerp(.64, .38, night)];
-  const sc = (1 - night);
-  const sunCol = [.52 * sc + golden * .12, .5 * sc, .44 * sc - golden * .05];
-  return { night, sun, amb, sunCol };
+  const fx = weatherFx(), cloud = fx.cloud;            // zachmurzenie: mniej słońca, więcej szarego światła rozproszonego
+  const amb = [lerp(.56, .2, night) + golden * .1 + cloud * .06 * (1 - night), lerp(.58, .23, night) + golden * .03 + cloud * .07 * (1 - night), lerp(.64, .38, night) + cloud * .06 * (1 - night)];
+  const sc = (1 - night) * (1 - .6 * cloud);
+  const sunCol = [.52 * sc + golden * .12 * (1 - cloud), .5 * sc, .44 * sc - golden * .05 * (1 - cloud)];
+  return { night, sun, amb, sunCol, fx };
 }
 
 function computeBuses(ms) {
