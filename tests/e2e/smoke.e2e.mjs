@@ -1,11 +1,13 @@
 // Test dymny w prawdziwej przeglądarce na stronie z sieci testowej.  Uruchom: npm run e2e
-import { test, before, after } from 'node:test';
+import { test, before, after, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildFixture, serve, launch, open } from './browser.mjs';
 
 let server, browser;
 before(async () => { server = await serve(buildFixture()); browser = await launch(); });
 after(async () => { await browser?.close(); server?.stop(); });
+// strona po nieudanym teście dalej renderuje (WebGL programowo zjada CPU): zamykamy wszystko po każdym teście
+afterEach(async () => { for (const c of browser?.contexts() || []) await c.close().catch(() => {}); });
 
 test('strona się ładuje bez błędów i rysuje mapę', async () => {
   const { page, errors, ctx } = await open(browser, server.url);
@@ -45,6 +47,40 @@ test('link z trasą wyznacza połączenie z przesiadką', async () => {
   assert.match(await page.$eval('#sheet h2', e => e.textContent), /Zachód → Daleko/);
   const legs = await page.$$eval('#sheet li.leg', l => l.length);
   assert.ok(legs >= 3, 'przejazd, przejście, przejazd');
+  await ctx.close();
+});
+
+test('na żywo: prognoza, odwołany kurs i komunikat na tablicy przystanku', async () => {
+  const { page, ctx, errors } = await open(browser, server.url + '#s=Zachód&time=06:55');
+  await page.waitForSelector('#sheet.show h2');
+  await page.evaluate(() => {
+    // dwa najbliższe odjazdy z tej tablicy (kursy, które dziś jeżdżą — zależnie od dnia tygodnia)
+    const ids = departures(selStop, warsaw(simMs()), 7200).slice(0, 2).map(d => S.trips[d.ti].id);
+    live.tu = tripUpdatesFrom([{ tripId: ids[0], delay: 240, stops: [] }, { tripId: ids[1], canceled: true, stops: [] }]);
+    live.alerts = alertsFrom([{ id: 'x', header: 'Objazd ul. Testowej', description: 'Remont', routes: ['A'], stops: [], periods: [] }]);
+    live.last = Date.now(); lastSheet = 0; renderSheet();
+  });
+  await page.waitForSelector('#sheet .alert');
+  const txt = await page.$eval('#sheet', e => e.textContent);
+  assert.match(txt, /Objazd ul\. Testowej/);
+  assert.match(txt, /\+4′/);
+  assert.match(txt, /odwołany/);
+  await page.waitForSelector('#bAlerts:not([hidden])');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('PWA: manifest i service worker, strona działa offline', async () => {
+  const { page, ctx } = await open(browser, server.url);
+  const manifest = await page.evaluate(async () => (await fetch('manifest.webmanifest')).json());
+  assert.equal(manifest.display, 'standalone');
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload({ waitUntil: 'domcontentloaded' });          // teraz kontrolowana przez service worker
+  await page.waitForFunction(() => document.querySelector('#loading')?.style.display === 'none');
+  await ctx.setOffline(true);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => document.querySelector('#loading')?.style.display === 'none', null, { timeout: 120000 });
+  assert.equal(await page.$eval('#err', e => e.textContent), '');
   await ctx.close();
 });
 

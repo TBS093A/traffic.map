@@ -74,6 +74,11 @@ class PrepTest(unittest.TestCase):
         self.assertIn('Testowa', names)
         self.assertIn('Północna', names)
 
+    def test_gtfs_ids_for_realtime(self):
+        self.assertEqual(self.D['route_ids'], ['A', 'B'])
+        self.assertEqual(len(self.D['stop_ids']), len(self.D['stops']))
+        self.assertEqual(self.D['stop_ids'][0], 'W')
+
     def test_route_names(self):
         self.assertEqual([r['n'] for r in self.D['routes']], sorted(LINES))
 
@@ -99,6 +104,15 @@ class BuildTest(unittest.TestCase):
             write(b, '/*@include a.html*/\n')
             with self.assertRaises(ValueError):
                 build.assemble(a)
+
+    def test_write_extras_versions_service_worker(self):
+        with tempfile.TemporaryDirectory() as d:
+            files = {os.path.basename(p) for p in build.write_extras(d, version='abc123')}
+            self.assertTrue({'sw.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'} <= files)
+            sw = read(os.path.join(d, 'sw.js'))
+            self.assertIn("'abc123'", sw)
+            self.assertNotIn('__VERSION__', sw)
+            self.assertEqual(json.loads(read(os.path.join(d, 'manifest.webmanifest')))['start_url'], './')
 
     def test_build_embeds_data(self):
         with tempfile.TemporaryDirectory() as d:

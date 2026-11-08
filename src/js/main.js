@@ -36,4 +36,8 @@ async function main() {
   requestAnimationFrame(render);
   requestAnimationFrame(() => applyLink(initial));           // po pierwszej klatce: arkusze potrzebują stanu symulacji
 }
+// tryb offline i instalacja na ekranie telefonu; service worker działa tylko z http(s), nie z pliku
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(e => console.warn('service worker:', e.message)));
+}
 main().catch(err => { console.error(err); $('#err').textContent = 'Błąd: ' + err.message; });
