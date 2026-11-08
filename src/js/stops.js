@@ -3,11 +3,11 @@
 function buildStopGroups() {
   S.groups = []; S.stopGroup = new Int32Array(D.stops.length);
   const byName = new Map();
-  D.stops.forEach(([x, y, name], i) => {
-    const base = name.replace(/\s+\d+\S*(\s+nż)?$/, '').trim() || name;
-    const list = byName.get(base) || []; byName.set(base, list);
+  D.stops.forEach(([x, y, name, , , mode], i) => {
+    const rail = mode === 1, base = rail ? name : name.replace(/\s+\d+\S*(\s+nż)?$/, '').trim() || name;   // stacja: perony mają jedną nazwę
+    const key = (rail ? 'R|' : '') + base, list = byName.get(key) || []; byName.set(key, list);
     let g = list.find(g => Math.hypot(D.stops[g.members[0]][0] - x, D.stops[g.members[0]][1] - y) < 600);
-    if (!g) { g = { name: base, n: norm(base), members: [], x: 0, y: 0, routes: new Set(), trips: 0, id: S.groups.length }; list.push(g); S.groups.push(g); }
+    if (!g) { g = { name: base, n: norm(base), members: [], x: 0, y: 0, routes: new Set(), trips: 0, id: S.groups.length, rail }; list.push(g); S.groups.push(g); }
     g.members.push(i); S.stopGroup[i] = g.id;
   });
   for (const g of S.groups) {
@@ -44,10 +44,11 @@ function buildStopSides() {
     }
   }
 }
+const stopIcon = g => g.rail ? '🚉' : '🚏';
 const sideText = m => { const s = S.side[m]; return s.arrOnly ? 'tylko wysiadka' : '→ ' + s.heads.join(' / '); };
 const miniChips = (routes, max) => `<span class="mini">${routes.slice(0, max).map(r => `<i style="background:${rgbCss(D.routes[r].c)}">${esc(D.routes[r].n)}</i>`).join('')}${routes.length > max ? '<i class="more">+' + (routes.length - max) + '</i>' : ''}</span>`;
 function groupRowsHtml(g) {
-  let h = `<li data-g="${g.id}" class="grp"><span class="grow">🚏 ${esc(g.name)}</span>${miniChips(g.routeList, 7)}</li>`;
+  let h = `<li data-g="${g.id}" class="grp"><span class="grow">${stopIcon(g)} ${esc(g.name)}</span>${miniChips(g.routeList, 7)}</li>`;
   if (g.members.length > 1) for (const m of g.members) {
     const sd = S.side[m];
     h += `<li data-g="${g.id}" data-m="${m}" class="side"><span class="pl">${esc(sd.plat)}</span><span class="grow">${esc(sideText(m))}${sd.next && !sd.arrOnly ? `<br><span class="mut">następny: ${esc(sd.next)}</span>` : ''}</span>${miniChips(sd.routes, 5)}</li>`;

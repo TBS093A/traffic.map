@@ -84,8 +84,23 @@ function buildCity() {
 
 // wiata przy każdym słupku: dach, szklana ściana od strony chodnika i znak przystanku; z daleka większa
 function buildStops(scale) {
-  const inst = [], P = {};
-  D.stops.forEach(([x, y], m) => {
+  const inst = [], P = {}, stations = new Set();
+  D.stops.forEach(([x, y, name], m) => {
+    if (!stopOn(m)) return;
+    if (stopIsRail(m)) {                        // stacja kolejowa: jeden peron z wiatą i niebieską tablicą na stację
+      const g = S.stopGroup[m]; if (stations.has(g)) return; stations.add(g);
+      const on = S.patByStop[m] && S.patByStop[m][0]; let a = 0;
+      if (on) { const pat = D.patterns[on[0]]; pointAt(S.shapes[pat[0]], pat[2][on[1]], P); a = Math.atan2(P.dy, P.dx); }
+      const tx = Math.cos(a), ty = Math.sin(a), ax = ty, ay = -tx, s = scale, base = bridgeAt(x, y, tx, ty);
+      const box = (u, v, b, l, h, w, c) => inst.push(x + (tx * u + ax * v) * s, base + b * s, -(y + (ty * u + ay * v) * s), a, l * s, h * s, w * s, 3, c[0], c[1], c[2], 0);
+      box(0, 5, 0, 30, 1, 4, [.72, .7, .66]);                // peron obok toru
+      box(0, 5.6, 3.4, 12, .35, 2.6, [.3, .36, .45]);        // wiata
+      for (const u of [-5, 0, 5]) box(u, 6.5, 1, .25, 2.4, .25, [.4, .4, .42]);
+      box(8, 6.6, 1, .2, 3.4, .2, [.5, .5, .52]);            // słupek tablicy
+      box(8, 6.6, 3.6, 3.2, 1.1, .2, [.12, .3, .62]);        // tablica z nazwą stacji: biało-niebieska
+      box(8, 6.6, 3.45, 3.4, .15, .22, [.95, .95, .95]);
+      return;
+    }
     let tx, ty, ax = 0, ay = 0;
     const on = S.patByStop[m] && S.patByStop[m][0];
     if (on) {                                   // kierunek jezdni i strona chodnika z trasy, która tu staje

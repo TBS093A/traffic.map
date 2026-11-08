@@ -6,6 +6,7 @@ function render(now) {
   cam.yaw += (cam.yawT - cam.yaw) * Math.min(1, dt * 9);
   const ms = simMs();
   simState = computeBuses(ms); buses = simState.buses;
+  airFollowTick(dt);
   if (follow && selTrip >= 0) { const b = buses.find(b => b.ti === selTrip); if (b) { cam.x = lerp(cam.x, b.x, Math.min(1, dt * 4)); cam.z = lerp(cam.z, -b.y, Math.min(1, dt * 4)); } }
   updateCamera();
   const sun = sunState(simState.w.month, simState.w.sec, simState.w.ymd), season = seasonState(simState.w), fx = sun.fx;
@@ -53,7 +54,8 @@ function render(now) {
     drawTiles(WORLD.boxes, lvl, vb); drawTiles(WORLD.roofs, lvl, vb); drawTiles(WORLD.trees, lvl, vb);
     common(meshP); drawMesh(lvl, vb); common(boxP);
   } else if (opt.bld) { gl.bindVertexArray(staticBox.vao); gl.drawArraysInstanced(gl.TRIANGLES, 0, 36, staticBox.count); }
-  syncStops(); gl.bindVertexArray(stopBox.vao); gl.drawArraysInstanced(gl.TRIANGLES, 0, 36, stopBox.count);
+  syncStops(); if (stopBox.count) { gl.bindVertexArray(stopBox.vao); gl.drawArraysInstanced(gl.TRIANGLES, 0, 36, stopBox.count); }
+  drawInfra();
   if (nDyn) { gl.bindBuffer(gl.ARRAY_BUFFER, dynBox.buf); gl.bufferSubData(gl.ARRAY_BUFFER, 0, dyn, 0, nDyn * 12); gl.bindVertexArray(dynBox.vao); gl.drawArraysInstanced(gl.TRIANGLES, 0, 36, nDyn); }
 
   // post
@@ -86,7 +88,7 @@ function updateBadges() {
     if (sx < -30 || sy < -30 || sx > innerWidth + 30 || sy > innerHeight + 30) continue;
     if (n >= 600) break;
     let el = badgePool[n]; if (!el) { el = document.createElement('div'); el.className = 'badge'; host.appendChild(el); badgePool.push(el); }
-    const c = D.routes[tr.route].c, txt = D.routes[tr.route].n;
+    const c = D.routes[tr.route].c, txt = routeIsRail(tr.route) && tr.brig ? D.routes[tr.route].n + ' ' + tr.brig.split(' ')[0] : D.routes[tr.route].n;
     if (el._t !== txt) { el.textContent = txt; el._t = txt; }
     const bgc = (selRoute >= 0 && !inRoute && !isSel) ? '#8c8c96' : rgbCss(c);
     if (el._c !== bgc) { el.style.background = bgc; el._c = bgc; }
@@ -95,5 +97,6 @@ function updateBadges() {
     n++;
   }
   for (let i = n; i < badgePool.length; i++) badgePool[i].style.display = 'none';
+  updateAirBadges();
 }
 

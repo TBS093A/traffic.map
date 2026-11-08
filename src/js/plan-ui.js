@@ -64,7 +64,7 @@ function suggest(field) {
     places.push(...geocode(val).slice(0, 6));
     const p = parseAddr(val), q = p.words.join(' ');
     S.groups.filter(g => g.trips > 0 && g.n.includes(q)).sort((a, b) => (b.n.startsWith(q) - a.n.startsWith(q)) || b.trips - a.trips).slice(0, 5)
-      .forEach(g => places.push({ kind: 'stop', g: g.id, label: g.name, icon: '🚏', routes: g.routeList }));
+      .forEach(g => places.push({ kind: 'stop', g: g.id, label: g.name, icon: stopIcon(g), routes: g.routeList }));
     html += places.map((p, i) => `<div data-pi="${i}" data-f="${field}"><span>${p.icon} ${esc(p.label)}${p.note ? ` <span class="mut">${esc(p.note)}</span>` : ''}</span>${p.routes ? miniChips(p.routes, 5) : ''}</div>`).join('');
     if (!places.length) html += '<div class="empty">Nic nie znaleziono</div>';
   }

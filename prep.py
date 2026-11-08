@@ -16,6 +16,8 @@ import math
 import os
 import sys
 
+from rail import SOURCE as RAIL_SOURCE, is_rail
+
 LAT0, LON0 = 50.0375, 22.0049          # Rynek
 KX = 111320 * math.cos(math.radians(LAT0))
 KY = 110574
@@ -140,7 +142,7 @@ def load_addresses(path, stops, radius=1500):
     return out
 
 
-def prepare(src, out, addresses=None, map_cache=None, dem_path=None):
+def prepare(src, out, addresses=None, map_cache=None, dem_path=None, bts_path=None):
     """Czyta GTFS z katalogu src (opcjonalnie adresy i warstwy mapy OSM), zapisuje kompaktowy JSON do out."""
     src = os.path.join(src, '')
 
@@ -165,8 +167,14 @@ def prepare(src, out, addresses=None, map_cache=None, dem_path=None):
     out_routes = []
     for i, r in enumerate(routes):
         rr, gg, bb = colorsys.hls_to_rgb((i * golden) % 1.0, 0.55, 0.85)
-        out_routes.append({'n': r['route_short_name'] or r['route_id'], 'name': r.get('route_long_name', ''),
-                           'c': [round(rr * 255), round(gg * 255), round(bb * 255)]})
+        c = [round(rr * 255), round(gg * 255), round(bb * 255)]
+        o = {'n': r['route_short_name'] or r['route_id'], 'name': r.get('route_long_name', ''), 'c': c}
+        if is_rail(r.get('route_type')):        # pociąg (rail.py): kolor przewoźnika, tryb 1
+            o['m'] = 1
+            rc = (r.get('route_color') or '').strip().lstrip('#')
+            if len(rc) == 6:
+                o['c'] = [int(rc[k:k + 2], 16) for k in (0, 2, 4)]
+        out_routes.append(o)
 
     # ---------- przystanki ----------
     stop_idx, out_stops, stop_street = {}, [], []
@@ -300,6 +308,12 @@ def prepare(src, out, addresses=None, map_cache=None, dem_path=None):
         out_trips.append([route_idx[t['route_id']], service_idx[sv], pattern_idx[pk], head_idx[h],
                           t.get('brigade', '') or '', tid, times[0], deltas])
     out_trips.sort(key=lambda x: x[6])
+    # stacje kolejowe: słupki, na których stają pociągi, dostają znacznik trybu (6. pole)
+    for t in out_trips:
+        if out_routes[t[0]].get('m') == 1:
+            for si in patterns[t[2]][1]:
+                if len(out_stops[si]) == 5:
+                    out_stops[si].append(1)
 
     out_shapes = []
     for sid in shape_list:
@@ -353,6 +367,12 @@ def prepare(src, out, addresses=None, map_cache=None, dem_path=None):
         'route_ids': [r['route_id'] for r in routes], 'stop_ids': list(stop_idx),
         'patterns': patterns, 'heads': heads, 'trips': out_trips, 'streets': out_streets,
     }
+    if any(r.get('m') == 1 for r in out_routes):
+        data['feed']['rail_source'] = RAIL_SOURCE
+    if bts_path and os.path.exists(bts_path):
+        import bts
+        data['bts'] = bts.compact(bts.load(bts_path), proj)
+        data['feed']['bts_source'] = bts.SOURCE
     n_addr = 0
     if addresses and os.path.exists(addresses):
         data['addr'] = load_addresses(addresses, out_stops)
@@ -375,6 +395,7 @@ def prepare(src, out, addresses=None, map_cache=None, dem_path=None):
         json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
     return {**map_stats, 'routes': len(out_routes), 'stops': len(out_stops), 'shapes': len(out_shapes),
             'patterns': len(patterns), 'trips': len(out_trips), 'skipped_trips': skipped,
+            'rail_trips': sum(1 for t in out_trips if out_routes[t[0]].get('m') == 1),
             'dates': len(dates), 'streets': len(out_streets), 'addresses': n_addr, 'start': start, 'end': end, 'version': feed.get('feed_version', '')}
 
 

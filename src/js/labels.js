@@ -121,17 +121,19 @@ function rebuildLabels() {
     const selG = selStop >= 0 ? S.stopGroup[selStop] : -1;
     const lit = litStops();                     // przystanki zaznaczonego autobusu / linii: reszta przygaszona
     const TDIM = [.45, .72, 1, .22], TDOT = [.45, .72, 1, 2];
+    const TRAIL = [1, .62, .32, 2];               // stacje kolejowe: pomarańczowe kropki
     for (const grp of S.groups) {
+      if (!groupOn(grp)) continue;
       for (const m of grp.members) {
         const [x, y] = D.stops[m], sel = isSel(grp.id) && (grp.id !== selG || selSide < 0 || selSide === m);
         const on = lit && lit.has(m), k = sel ? 1.8 : on ? Math.max(1, .9 / (dpx / LBL.discPx)) : lit ? .7 : 1;
-        quad(out, x, -y, roof, R, A, dpx * k * wpp / sq(R[0], R[1]), dpx * k * wpp / sq(A[0], A[1]), g, sel ? TSEL : lit && !on ? TDIM : TDOT);
+        quad(out, x, -y, roof, R, A, dpx * k * wpp / sq(R[0], R[1]), dpx * k * wpp / sq(A[0], A[1]), g, sel ? TSEL : lit && !on ? TDIM : grp.rail ? TRAIL : TDOT);
       }
     }
     let n = 0;
     if (lit) {                                  // podpisy tylko przystanków zaznaczonego kursu, przy każdym zoomie
       for (const grp of S.groups) {
-        const m = grp.members.find(mm => lit.has(mm)); if (m === undefined) continue;
+        const m = grp.members.find(mm => lit.has(mm)); if (m === undefined || !groupOn(grp)) continue;
         putText(grp.name, D.stops[m][0], D.stops[m][1], LBL.stopPx, isSel(grp.id) ? TSEL : TP, isSel(grp.id), roof, false, m);
       }
     }
@@ -139,7 +141,7 @@ function rebuildLabels() {
     const close = cam.half < 230;
     for (const grp of order) {
       const sel = isSel(grp.id);
-      if (lit && !sel) continue;
+      if ((lit && !sel) || !groupOn(grp)) continue;
       if (!(cam.half < 520 || sel)) break;
       if (n > 300) break;
       if ((close || (sel && cam.half < 700)) && grp.members.length > 1) {   // z bliska: nazwa grupy, pod nią każda strona ruchu
@@ -200,7 +202,7 @@ function rebuildLabels() {
 
 function drawLabels() {
   if (!LBL.tex) return;
-  const key = Math.round(Math.log2(cam.half) * 2) + '|' + selTrip + '|' + selRoute + '|' + Math.round(cam.yawT / (Math.PI / 2)) + '|' + (selStop >= 0 ? S.stopGroup[selStop] : -1) + '|' + innerWidth + 'x' + innerHeight + '|' + opt.lbl + '|' + plan.key + '|' + selSide + '|' + (plan.me ? plan.me.x : '');
+  const key = Math.round(Math.log2(cam.half) * 2) + '|' + selTrip + '|' + selRoute + '|' + Math.round(cam.yawT / (Math.PI / 2)) + '|' + (selStop >= 0 ? S.stopGroup[selStop] : -1) + '|' + innerWidth + 'x' + innerHeight + '|' + opt.lbl + '|' + plan.key + '|' + selSide + '|' + (plan.me ? plan.me.x : '') + '|' + modesVer;
   if (key !== LBL.key) { LBL.key = key; if (opt.lbl) rebuildLabels(); else LBL.count = 0; }
   if (!LBL.count) return;
   gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.disable(gl.DEPTH_TEST);

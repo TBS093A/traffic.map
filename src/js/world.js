@@ -139,7 +139,9 @@ function buildWorld() {
 
   // teren: wielokąty w kolejności klas (woda na końcu), drzewa w lasach
   const forest = M.classes.indexOf('forest'), land = []; let nT = 0, forestArea = 0;
-  for (const [cls, ...rs] of M.l) {
+  // płyta lotniska i stacje transformatorowe (warstwa infra) jako zwykły teren: szary beton
+  const IF = M.infra, landList = IF ? M.l.concat(IF.air.ap.map(r => [M.classes.indexOf('parking'), r]), IF.pw.ss.map(r => [M.classes.indexOf('industrial'), r])) : M.l;
+  for (const [cls, ...rs] of landList) {
     const rings = rs.map(undelta), flat = new Float64Array(rings.reduce((a, r) => a + r.length, 0)), holes = []; let o = 0;
     rings.forEach((r, i) => { if (i) holes.push(o / 2); flat.set(r, o); o += r.length; });
     let tris = earcut(flat, holes, 2), pts = flat;
@@ -184,6 +186,11 @@ function buildWorld() {
     roads: [lineVao(M.r[3].concat(flatBridges[3]), 2.4, 0, 1400, 0), lineVao(M.r[2].concat(flatBridges[2]), 3.8, .6, 3600, 0), lineVao(M.r[4].concat(flatBridges[4]), 2.6, .7, 1e9, 3),
       lineVao(M.r[1].concat(flatBridges[1]), 5.5, .8, 1e9, 0), lineVao(M.r[0].concat(flatBridges[0]), 8, 1, 1e9, 0)],
     bridges: [[3, 2.4, 0, 1400, 0], [2, 3.8, .6, 3600, 0], [4, 2.6, .7, 1e9, 3], [1, 5.5, .8, 1e9, 0], [0, 8, 1, 1e9, 0]].filter(([bk]) => decks[bk].length).map(([bk, ...a]) => lineVao(decks[bk], ...a)) };
+  if (IF && IF.air.rw.length) {                     // lotnisko Jasionka: drogi kołowania, pas startowy, przerywana oś pasa
+    if (IF.air.tw.length) WORLD.roads.push(lineVao(IF.air.tw, 9, .6, 1e9, 0));
+    const rw = IF.air.rw.map(r => r[1]), hw = Math.max(...IF.air.rw.map(r => r[0])) / 2;
+    WORLD.roads.push(lineVao(rw, hw, 1, 1e9, 0), lineVao(rw, 1, .5, 1e9, 2));
+  }
   delete D.map;
 }
 function drawMesh(level, v) {

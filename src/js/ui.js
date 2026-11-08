@@ -18,7 +18,9 @@ const chip = r => `<span class="chip" style="background:${rgbCss(D.routes[r].c)}
 
 function renderSheet() {
   const sheet = $('#sheet'); const keepScroll = sheet.scrollTop;
-  if (selTrip >= 0) sheetShow(tripSheet(selTrip));
+  if (selAir) sheetShow(airSheet());
+  else if (selInfra !== null) sheetShow(infraSheet());
+  else if (selTrip >= 0) sheetShow(tripSheet(selTrip));
   else if (selStop >= 0) sheetShow(stopSheet(selStop));
   else if (plan.sel >= 0) sheetShow(planSheet());
   else if (selRoute >= 0) sheetShow(routeSheet(selRoute));
@@ -42,7 +44,7 @@ function tripSheet(ti) {
   }
   return `<button class="close" data-act="close">✕</button>
   <h2>${chip(tr.route)} → ${esc(tr.head)}</h2>
-  <div class="sub">${esc(r.name || '')}${tr.brig ? ' · brygada ' + esc(tr.brig) : ''}<br>${isCanceled(tr) ? '<b class="warn">kurs odwołany</b>' : status}</div>
+  <div class="sub">${esc(r.name || '')}${tr.brig ? (r.m === 1 ? ' · pociąg ' : ' · brygada ') + esc(tr.brig) : ''}<br>${isCanceled(tr) ? '<b class="warn">kurs odwołany</b>' : status}</div>
   ${alertsHtml(alertsFor({ route: tr.route, trip: tr.id }))}
   <div class="btnrow"><button data-act="follow" class="${follow ? 'on' : ''}">${follow ? 'Śledzę' : 'Śledź'}</button><button data-act="route" data-r="${tr.route}">Cała linia ${esc(r.n)}</button><button data-act="fit">Pokaż trasę</button>${shareBtn()}</div>
   <ul class="list">${rows}</ul>`;
@@ -84,7 +86,7 @@ function stopSheet(si) {
     : `<div class="sub">${esc(sideText(grp.members[0]))}${S.side[grp.members[0]].next ? ' · następny: ' + esc(S.side[grp.members[0]].next) : ''}</div>`;
   const routes = selSide >= 0 ? S.side[selSide].routes : grp.routeList;
   return `<button class="close" data-act="close">✕</button>
-  <h2>🚏 ${esc(grp.name)}</h2><div class="sub">${multi ? grp.members.length + ' słupki · ' : ''}odjazdy w ciągu godziny · ${routes.map(r => chip(r)).join(' ')}</div>
+  <h2>${stopIcon(grp)} ${esc(grp.name)}</h2><div class="sub">${multi ? grp.members.length + ' słupki · ' : ''}odjazdy w ciągu godziny · ${routes.map(r => chip(r)).join(' ')}</div>
   ${alertsHtml(alertsFor({ stops: selSide >= 0 ? [selSide] : grp.members, routes }))}
   ${tabs}
   <div class="btnrow"><button data-act="planfrom">🧭 Stąd</button><button data-act="planto">🧭 Dotąd</button><button data-act="timetable">📅 Rozkład</button><button data-act="reach" title="Dokąd dojedziesz stąd w 10, 20, 30 i 45 min">⏱ Zasięg</button>${shareBtn()}</div>
@@ -97,7 +99,7 @@ function routeSheet(ri) {
   const rows = mine.map(b => { const tr = S.trips[b.ti], ns = tr.stops[Math.min(b.k, tr.stops.length - 1)];
     return `<li data-trip="${b.ti}">${chip(ri)}<span class="grow">→ ${esc(tr.head)}</span><span class="mut">${b.at ? 'na przyst.' : 'dalej:'} ${esc(D.stops[ns][2])}</span></li>`; }).join('');
   return `<button class="close" data-act="close">✕</button>
-  <h2>${chip(ri)} ${esc(r.name || '')}</h2><div class="sub">${mine.length ? `Na trasie: ${mine.length} ${mine.length === 1 ? 'autobus' : (mine.length % 10 >= 2 && mine.length % 10 <= 4 && (mine.length % 100 < 10 || mine.length % 100 >= 20)) ? 'autobusy' : 'autobusów'}` : 'Teraz brak autobusów tej linii na trasie.'}</div>
+  <h2>${chip(ri)} ${esc(r.name || '')}</h2><div class="sub">${mine.length ? `Na trasie: ${mine.length} ${(r.m === 1 ? ['pociąg', 'pociągi', 'pociągów'] : ['autobus', 'autobusy', 'autobusów'])[mine.length === 1 ? 0 : (mine.length % 10 >= 2 && mine.length % 10 <= 4 && (mine.length % 100 < 10 || mine.length % 100 >= 20)) ? 1 : 2]}` : r.m === 1 ? 'Teraz brak pociągów tej kategorii w obszarze mapy.' : 'Teraz brak autobusów tej linii na trasie.'}</div>
   ${alertsHtml(alertsFor({ route: ri }))}
   <div class="btnrow"><button data-act="fit">Pokaż trasę</button>${shareBtn()}</div>
   <ul class="list">${rows}</ul>`;
@@ -115,6 +117,7 @@ function fitShapes(shapeIdxs) {
 let selSide = -1, stopFilter = store.get('stopFilter', 'all');
 function select({ trip = -1, stop = -1, route, side }) {
   selTrip = trip; selStop = stop; if (route !== undefined) selRoute = route;
+  selAir = null; selInfra = null; followAir = false;
   selSide = side !== undefined ? side : (stop >= 0 ? stop : -1);
   if (trip >= 0) selRoute = -1;
   if (trip < 0) follow = false;
@@ -136,11 +139,12 @@ $('#sheet').addEventListener('click', e => {
   if (a.dataset.act === 'planopts') { openOv('planOv'); renderPlanResults(); return; }
   if (a.dataset.act === 'planfit') { fitPlan(); return; }
   if (a.dataset.act === 'planfrom' || a.dataset.act === 'planto') {
-    const g = S.groups[S.stopGroup[selStop]], p = { kind: 'stop', g: g.id, label: g.name, icon: '🚏' };
+    const g = S.groups[S.stopGroup[selStop]], p = { kind: 'stop', g: g.id, label: g.name, icon: stopIcon(g) };
     if (a.dataset.act === 'planfrom') plan.fromP = p; else plan.toP = p;
     plan.options = []; openPlanner(); return;
   }
   if (a.dataset.act === 'follow') { follow = !follow; renderSheet(); return; }
+  if (a.dataset.act === 'airfollow') { followAir = !followAir; lastSheet = 0; renderSheet(); return; }
   if (a.dataset.act === 'route') { select({ route: +a.dataset.r }); return; }
   if (a.dataset.act === 'fit') { fitShapes(selTrip >= 0 ? [S.trips[selTrip].shape] : [...S.routeShapes[selRoute]]); return; }
   if (a.dataset.stop !== undefined) { const si = +a.dataset.stop; select({ stop: si, route: -1 }); const [x, y] = D.stops[si]; cam.x = x; cam.z = -y; cam.half = Math.min(cam.half, 400); return; }
@@ -161,6 +165,7 @@ function pick(px, py, touch = false) {
   {
     const roof = stopRoofY(cam.half);
     D.stops.forEach(([x, y], i) => {
+      if (!stopOn(i)) return;
       const [sx, sy] = worldToScreen(x, roof, -y), [gx, gy] = worldToScreen(x, roof / 2, -y);
       const d = Math.min(Math.hypot(sx - px, sy - py), Math.hypot(gx - px, gy - py));
       if (d < bestS) { bestS = d; bs = i; }
@@ -172,9 +177,13 @@ function pick(px, py, touch = false) {
       if (d <= tol && d < bestS) { bestS = d; bs = h.stop; }
     }
   }
+  const [bestA, hex] = pickAir(px, py, Math.min(bestB, bestS) + .01);     // samolot nad wszystkim
+  if (hex) { selectAir(hex); return; }
+  const [bestI, inf] = pickInfra(px, py, Math.min(bestB, bestS, touch ? 40 : 30));
+  if (inf !== null && bestI < Math.min(bestB, bestS)) { selectInfra(inf); return; }
   if (bs >= 0 && (bt < 0 || bestS < bestB)) { select({ stop: bs, route: -1 }); return; }   // remis: wygrywa autobus, jego numer leży na wierzchu
   if (bt >= 0) { select({ trip: bt }); return; }
-  if (selTrip >= 0 || selStop >= 0) select({ route: selRoute });
+  if (selTrip >= 0 || selStop >= 0 || selAir || selInfra !== null) select({ route: selRoute });
 }
 
 /* ---- sterowanie ---- */

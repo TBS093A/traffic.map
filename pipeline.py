@@ -39,6 +39,8 @@ from build import build, sources, write_extras, STATIC  # noqa: E402
 import osm  # noqa: E402
 from diff import summarize, compare, is_empty  # noqa: E402
 import dem  # noqa: E402
+import rail  # noqa: E402
+import bts  # noqa: E402
 
 DEFAULTS = {
     "sources": [
@@ -69,6 +71,15 @@ DEFAULTS = {
         "zoom": 11,                # ok. 75 m na piksel; na obszar sieci kilkanaście kafli
         "step_m": 150,
         "pause_s": 0.2,
+    },
+    "rail": {                      # pociągi z ogólnopolskiego GTFS kolei (dane PKP PLK), przycięte do obszaru "map"
+        "enabled": True,
+        "url": "https://mkuran.pl/gtfs/polish_trains.zip",
+    },
+    "bts": {                       # stacje bazowe telefonii komórkowej: wykaz pozwoleń radiowych UKE (xlsx)
+        "enabled": True,
+        "url": "https://bip.uke.gov.pl/pozwolenia-radiowe/wykaz-pozwolen-radiowych-tresci/stacje-gsm-umts-lte-5gnr-oraz-cdma,12,0.html",
+        "max_age_days": 30,
     },
     "map": {                       # budynki, woda, teren, drogi i drzewa z OSM
         "enabled": True,
@@ -369,6 +380,42 @@ def fetch_dem(cfg):
     return path if os.path.exists(path) else None
 
 
+def fetch_rail(cfg, state):
+    """Paczka GTFS kolei (z ETag jak rozkład ZTM). Przy błędzie poprzednia kopia albo None (bez pociągów)."""
+    rcfg = dict(DEFAULTS["rail"], **(cfg.get("rail") or {}))
+    if not rcfg.get("enabled"):
+        return None
+    cache = os.path.join(cfg["work_dir"], "cache")
+    sstate = state.setdefault("rail", {})
+    try:
+        path, changed = download({"name": "rail", "url": rcfg["url"]}, cache, sstate, cfg)
+        check_zip(path)
+        log.info("pociągi: %s", "nowa paczka" if changed else "bez zmian (304)")
+        return path
+    except Exception as e:  # noqa: BLE001
+        path = os.path.join(cache, "rail.zip")
+        log.warning("pociągi: %s — %s", e, "używam poprzedniej kopii" if os.path.exists(path) else "strona bez pociągów")
+        return path if os.path.exists(path) else None
+
+
+def fetch_bts(cfg):
+    """Stacje bazowe telefonii z wykazu pozwoleń radiowych UKE (odświeżane co max_age_days). Ścieżka albo None."""
+    bcfg = dict(DEFAULTS["bts"], **(cfg.get("bts") or {}))
+    if not bcfg.get("enabled"):
+        return None
+    path = os.path.join(cfg["work_dir"], "cache", "bts.json.gz")
+    if os.path.exists(path) and time.time() - os.path.getmtime(path) < bcfg["max_age_days"] * 86400:
+        return path
+    bbox = (cfg.get("map") or {}).get("bbox") or DEFAULTS["map"]["bbox"]
+    try:
+        doc = bts.fetch(bcfg["url"], bbox, USER_AGENT, cfg["timeout_s"], log)
+        bts.save(doc, path)
+        log.info("stacje bazowe UKE: %d lokalizacji, %d nadajników", len(doc["sites"]), sum(len(s["tx"]) for s in doc["sites"]))
+    except Exception as e:  # noqa: BLE001
+        log.warning("stacje bazowe UKE: %s — %s", e, "używam poprzedniej kopii" if os.path.exists(path) else "strona bez stacji bazowych")
+    return path if os.path.exists(path) else None
+
+
 def map_hash(cache):
     h = hashlib.sha256()
     for name in osm.queries((0, 0, 0, 0), 0):
@@ -382,20 +429,30 @@ def map_hash(cache):
 def code_hash(cfg):
     h = hashlib.sha256()
     static = [os.path.join(STATIC, f) for f in sorted(os.listdir(STATIC))] if os.path.isdir(STATIC) else []
-    for p in (*sources(cfg["template"]), *static, *(os.path.join(HERE, f) for f in ("prep.py", "build.py", "osm.py", "diff.py", "dem.py"))):
+    for p in (*sources(cfg["template"]), *static, *(os.path.join(HERE, f) for f in ("prep.py", "build.py", "osm.py", "diff.py", "dem.py", "rail.py", "bts.py"))):
         h.update(sha256_file(p).encode())
     return h.hexdigest()
 
 
-def build_from(zip_path, cfg, today, addresses=None, map_cache=None, dem_path=None):
+def build_from(zip_path, cfg, today, addresses=None, map_cache=None, dem_path=None, rail_zip=None, bts_path=None):
     """Buduje stronę do pliku tymczasowego w out_dir. Zwraca (tmp_html, statystyki)."""
     os.makedirs(cfg["out_dir"], exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="rwp-") as tmp:
         gtfs = os.path.join(tmp, "gtfs")
         os.makedirs(gtfs)
         extract_txt(zip_path, gtfs)
+        rail_stats = {}
+        if rail_zip:
+            try:
+                rail_stats = rail.merge(gtfs, rail_zip, (cfg.get("map") or {}).get("bbox") or DEFAULTS["map"]["bbox"])
+                log.info("pociągi: %d kursów, %d stacji", rail_stats["rail_trips"], rail_stats["rail_stations"])
+            except Exception as e:  # noqa: BLE001 — bez pociągów strona i tak działa
+                log.warning("pociągi: %s — buduję bez pociągów", e)
+                shutil.rmtree(gtfs)
+                os.makedirs(gtfs)
+                extract_txt(zip_path, gtfs)
         data_json = os.path.join(tmp, "data.json")
-        stats = prepare(gtfs, data_json, addresses, map_cache, dem_path)
+        stats = prepare(gtfs, data_json, addresses, map_cache, dem_path, bts_path)
         problems = []
         if stats["routes"] < cfg["min_routes"]:
             problems.append(f"za mało linii ({stats['routes']})")
@@ -482,8 +539,12 @@ def run(cfg, force=False):
     addresses = fetch_addresses(cfg)
     map_cache = fetch_map(cfg)
     dem_path = fetch_dem(cfg)
+    rail_zip = fetch_rail(cfg, state)
+    bts_path = fetch_bts(cfg)
+    save_state(work, state)
     ch = code_hash(cfg) + (":" + sha256_file(addresses)[:16] if addresses else "") + (":" + map_hash(map_cache)[:16] if map_cache else "") \
-        + (":" + sha256_file(dem_path)[:16] if dem_path else "")
+        + (":" + sha256_file(dem_path)[:16] if dem_path else "") + (":" + sha256_file(rail_zip)[:16] if rail_zip else "") \
+        + (":" + sha256_file(bts_path)[:16] if bts_path else "")
     index = os.path.join(cfg["out_dir"], "index.html")
     fallback, current_stale = None, False
     for src, path, sha in candidates:
@@ -496,7 +557,7 @@ def run(cfg, force=False):
             current_stale = True               # opublikowana paczka jest nieaktualna — szukaj dalej
             continue
         try:
-            tmp_html, stats = build_from(path, cfg, today, addresses, map_cache, dem_path)
+            tmp_html, stats = build_from(path, cfg, today, addresses, map_cache, dem_path, rail_zip, bts_path)
         except Exception as e:  # noqa: BLE001
             log.warning("%s: build nieudany: %s", src["name"], e)
             continue

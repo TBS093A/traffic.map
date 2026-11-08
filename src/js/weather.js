@@ -31,12 +31,20 @@ function parseWeather(j) {
   return { cur: { temp: c.temperature_2m, feels: c.apparent_temperature, code: c.weather_code ?? -1, precip: c.precipitation ?? 0,
     cloud: c.cloud_cover ?? 0, wind: c.wind_speed_10m ?? 0, snow: c.snow_depth ?? 0, time: c.time || '' }, days };
 }
+// jakość powietrza (Open-Meteo Air Quality, model CAMS): europejski indeks EAQI i pyły
+const AQ_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality?latitude=50.0375&longitude=22.0049&timezone=Europe%2FWarsaw&current=european_aqi,pm10,pm2_5';
+const AQ_BANDS = [[20, 'bardzo dobra'], [40, 'dobra'], [60, 'umiarkowana'], [80, 'słaba'], [100, 'zła'], [Infinity, 'bardzo zła']];
+function parseAir(j) {
+  const c = (j && j.current) || {};
+  if (!Number.isFinite(c.european_aqi)) return null;
+  return { aqi: c.european_aqi, pm10: c.pm10, pm25: c.pm2_5, label: AQ_BANDS.find(([max]) => c.european_aqi <= max)[1] };
+}
 async function fetchWeather() {
   if (opt.wx === 'off') return;
-  try {
-    const r = await fetch(WX_URL, { cache: 'no-store' }); if (!r.ok) throw new Error('HTTP ' + r.status);
-    Object.assign(WX, parseWeather(await r.json()), { last: Date.now(), err: '' });
-  } catch (e) { WX.err = e.message; }
+  const get = async u => { const r = await fetch(u, { cache: 'no-store' }); if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); };
+  const [w, a] = await Promise.allSettled([get(WX_URL), get(AQ_URL)]);
+  if (w.status === 'fulfilled') Object.assign(WX, parseWeather(w.value), { last: Date.now(), err: '' }); else WX.err = w.reason.message;
+  if (a.status === 'fulfilled') WX.air = parseAir(a.value);
   renderWeather();
 }
 function startWeather() { clearInterval(WX.timer); fetchWeather(); WX.timer = setInterval(fetchWeather, 15 * 60 * 1000); }
@@ -52,6 +60,7 @@ function weatherFx() {
   if ((code >= 71 && code <= 77) || code === 85 || code === 86) z.snowFall = code === 75 || code === 86 ? 1 : Math.max(amount, .5);
   if (code === 45 || code === 48) z.fog = .85;
   z.cloud = clamp(cloud / 100, 0, 1) * .8;
+  if (WX.air && WX.air.aqi > 50) z.fog = Math.max(z.fog, clamp((WX.air.aqi - 50) / 80, 0, .55));   // smog jako lekka mgła
   z.wet = z.rain > 0 || (precip > 0 && !z.snowFall) ? 1 : 0;
   return z;
 }
@@ -74,7 +83,7 @@ function renderWeather() {
   const c = WX.cur, [icon, txt] = wmo(c.code), far = Math.abs(simMs() - Date.now()) > 3 * 3600e3;
   const t = v => (v == null ? '–' : Math.round(v) + '°');
   el.hidden = false;
-  el.innerHTML = `<span class="wxi" aria-hidden="true">${icon}</span><b class="wxt">${t(c.temp)}</b><span class="wxd">${esc(txt)}${txt ? ' · ' : ''}odczuwalna ${t(c.feels)} · wiatr ${Math.round(c.wind)} km/h${c.snow > 0 ? ` · śnieg ${Math.round(c.snow * 100)} cm` : ''}${far ? ' · <i>teraz</i>' : ''}</span>`;
+  el.innerHTML = `<span class="wxi" aria-hidden="true">${icon}</span><b class="wxt">${t(c.temp)}</b><span class="wxd">${esc(txt)}${txt ? ' · ' : ''}odczuwalna ${t(c.feels)} · wiatr ${Math.round(c.wind)} km/h${c.snow > 0 ? ` · śnieg ${Math.round(c.snow * 100)} cm` : ''}${WX.air ? ` · powietrze: <span class="aq${WX.air.aqi > 60 ? ' bad' : ''}">${esc(WX.air.label)}</span> (PM2,5 ${Math.round(WX.air.pm25)} µg/m³)` : ''}${far ? ' · <i>teraz</i>' : ''}</span>`;
   const today = WX.days[warsaw(Date.now()).ymd], hm = h => `${Math.floor(h)}:${String(Math.round(h % 1 * 60)).padStart(2, '0')}`;
   el.title = `Pogoda w Rzeszowie (Open-Meteo)${today ? `, wschód ${hm(today[0])}, zachód ${hm(today[1])}` : ''}`;
   el.setAttribute('aria-label', `Pogoda: ${t(c.temp)}, ${txt}, wiatr ${Math.round(c.wind)} km/h`);

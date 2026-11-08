@@ -18,6 +18,11 @@ button.on{background:var(--acc);color:#141622;border-color:var(--acc)}
 #wx .wxt{font-family:var(--px);font-size:18px;color:var(--fg);font-weight:600}
 #wx .wxd{line-height:1.25}
 #speeds button{min-width:42px;padding:4px 6px;min-height:32px}
+#modes{gap:4px}
+#modes button{min-width:42px;padding:2px 6px;min-height:32px;font-size:17px;opacity:.5;filter:grayscale(.8)}
+#modes button.on{opacity:1;filter:none}
+#modes button[hidden]{display:none}
+#wx .aq.bad{color:#ff9a6a}
 #tools{position:fixed;right:10px;top:10px;display:flex;flex-direction:column;gap:6px}
 #tools button{width:44px;height:44px;padding:0;font-size:18px}
 #nav{position:fixed;left:10px;bottom:calc(10px + var(--sheetH,0px));display:flex;flex-direction:column;gap:6px;transition:bottom .2s}
@@ -57,6 +62,7 @@ input[type=text],input[type=time]{font:inherit;background:#0f111b;color:var(--fg
 .badge{position:absolute;transform:translate(-50%,-80%);font-family:var(--px);font-weight:600;font-size:18px;line-height:22px;padding:0 6px;color:#141622;border:2px solid rgba(0,0,0,.55);white-space:nowrap}
 .badge.far{font-size:16px;line-height:19px;padding:0 4px}
 .badge.sel{font-size:21px;line-height:26px;outline:2px solid #fff}
+.badge.air{background:#1b2440;color:#e6ecff;font-size:15px;line-height:19px;padding:0 5px;cursor:pointer}
 #attr{position:fixed;right:10px;left:70px;bottom:4px;font-size:10px;color:rgba(238,240,247,.6);pointer-events:none;text-shadow:0 1px 0 #000;text-align:right}
 #hint{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);padding:8px 12px;font-size:13px;color:var(--mut);transition:opacity .6s;pointer-events:none;white-space:nowrap}
 #loading{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:var(--bg);z-index:10;font-family:var(--px);font-size:20px}

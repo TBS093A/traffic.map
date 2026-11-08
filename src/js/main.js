@@ -17,6 +17,7 @@ async function main() {
   R.cubeBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, R.cubeBuf); gl.bufferData(gl.ARRAY_BUFFER, cubeGeo(), gl.STATIC_DRAW);
   R.prismBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, R.prismBuf); gl.bufferData(gl.ARRAY_BUFFER, prismGeo(), gl.STATIC_DRAW);
   setupTerrain();
+  initInfra();                                  // przed buildWorld: ten usuwa D.map
   if (D.map) buildWorld(); else staticBox = boxVAO(city.data, false);
   dynBox = boxVAO(dyn, true);
   setProgress(.92, 'Rysowanie podpisów…'); await buildAtlas();
@@ -32,6 +33,12 @@ async function main() {
   $('#attr').textContent = (f.map_source ? 'Mapa i adresy © OpenStreetMap · ' : f.addr_source ? 'Adresy © OpenStreetMap · ' : '') + 'Dane: ZTM Rzeszów (przetworzone)' + (f.publisher ? ' · ' + f.publisher : '') + (f.built ? ' · ' + f.built : '') + (f.map_source ? '' : ' · zabudowa poglądowa') + ' · Pogoda: Open-Meteo.com';
   $('#about').insertAdjacentHTML('beforeend', '<br><br>Pogoda: <a href="https://open-meteo.com/">Open-Meteo.com</a> (CC BY 4.0), aktualna dla Rzeszowa, odświeżana co 15 minut.'
     + (f.dem_source ? '<br><br>Wysokości terenu: <a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md">Terrain Tiles</a> (Mapzen, AWS Open Data); w Polsce głównie EU-DEM (dane programu Copernicus finansowanego przez UE) i SRTM (NASA).' : ''));
+  $('#about').insertAdjacentHTML('beforeend', (f.rail_source ? `<br><br>Pociągi: rozkład <a href="https://www.plk-sa.pl/klienci-i-kontrahenci/api-otwarte-dane">PKP Polskie Linie Kolejowe</a> w opracowaniu <a href="https://mkuran.pl/gtfs/">mkuran.pl</a>; pokazane są kursy w obszarze mapy.` : '')
+    + '<br><br>Samoloty: pozycje ADS-B z <a href="https://adsb.lol/">adsb.lol</a> (ODbL), tylko przez serwer proxy.mjs. Wysokość lotu na mapie jest ściśnięta.'
+    + (f.bts_source ? '<br><br>Stacje bazowe telefonii: <a href="https://bip.uke.gov.pl/pozwolenia-radiowe/">UKE, wykaz pozwoleń radiowych</a>. Sieć energetyczna, maszty, stacje paliw i ładowarki: OpenStreetMap (ODbL).' : '')
+    + '<br><br>Jakość powietrza: <a href="https://open-meteo.com/en/docs/air-quality-api">Open-Meteo Air Quality</a> (model CAMS, Copernicus).');
+  if (f.rail_source) $('#attr').textContent += ' · Pociągi: PKP PLK';
+  initModes(); pollAir();
   syncOpts(); syncSpeedBtns(); autoLive(); setupA11y(); loadChanges(); startWeather();
   setProgress(1, 'Gotowe'); resize(); updateCamera();
   $('#loading').style.display = 'none';

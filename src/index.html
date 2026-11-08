@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="description" content="Izometryczna mapa pixel-art autobusów ZTM Rzeszów: rozkład, przystanki i planer połączeń.">
+<meta name="description" content="Izometryczna mapa pixel-art Rzeszowa: autobusy ZTM, pociągi, samoloty i infrastruktura; rozkład, przystanki i planer połączeń.">
 <title>Rzeszów w pikselach — komunikacja miejska</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,6 +25,7 @@
   <div class="row"><span id="title">RZESZÓW W PIKSELACH</span></div>
   <div class="row"><span id="clock">--:--:--</span><span id="day"></span></div>
   <div class="row" id="wx" hidden></div>
+  <div class="row" id="modes" role="group" aria-label="Co widać na mapie"></div>
   <div class="row" id="speeds">
     <button data-speed="0" title="Pauza">❚❚</button>
     <button data-speed="1" class="on">1×</button>
@@ -132,6 +133,7 @@
 <script>
 /*@include js/util.js*/
 /*@include js/data.js*/
+/*@include js/modes.js*/
 /*@include js/time.js*/
 /*@include js/gl.js*/
 /*@include js/perf.js*/
@@ -146,6 +148,8 @@
 /*@include js/render.js*/
 /*@include js/ui.js*/
 /*@include js/live.js*/
+/*@include js/air.js*/
+/*@include js/infra.js*/
 /*@include js/alerts.js*/
 /*@include js/labels.js*/
 /*@include js/stops.js*/
