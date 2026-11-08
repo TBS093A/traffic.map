@@ -31,6 +31,7 @@
     <button data-speed="60">60×</button>
     <button data-now="1" title="Wróć do teraz">Teraz</button>
   </div>
+  <div class="row"><button id="bAlerts" class="warnbtn" hidden></button></div>
 </div>
 
 <div id="tools">
@@ -80,6 +81,11 @@
   <div id="ttBody"></div>
 </div></div>
 
+<div id="alertsOv" class="overlay"><div class="panel">
+  <h3>Komunikaty o utrudnieniach <button data-close="alertsOv" style="min-height:32px;width:34px;padding:0">✕</button></h3>
+  <div id="alertsBody"></div>
+</div></div>
+
 <div id="setOv" class="overlay"><div class="panel">
   <h3>Ustawienia <button data-close="setOv" style="min-height:32px;width:34px;padding:0">✕</button></h3>
   <div class="set">
@@ -124,6 +130,7 @@
 /*@include js/render.js*/
 /*@include js/ui.js*/
 /*@include js/live.js*/
+/*@include js/alerts.js*/
 /*@include js/labels.js*/
 /*@include js/stops.js*/
 /*@include js/geocode.js*/
@@ -132,6 +139,7 @@
 /*@include js/links.js*/
 /*@include js/share.js*/
 /*@include js/timetable.js*/
+/*@include js/remind.js*/
 /*@include js/main.js*/
 </script>
 </body>

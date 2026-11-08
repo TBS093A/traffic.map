@@ -48,6 +48,25 @@ test('link z trasą wyznacza połączenie z przesiadką', async () => {
   await ctx.close();
 });
 
+test('na żywo: prognoza, odwołany kurs i komunikat na tablicy przystanku', async () => {
+  const { page, ctx, errors } = await open(browser, server.url + '#s=Zachód&time=06:55');
+  await page.waitForSelector('#sheet.show h2');
+  await page.evaluate(() => {
+    const ids = S.trips.filter(t => t.route === 0 && t.start >= 7 * 3600).slice(0, 2).map(t => t.id);
+    live.tu = tripUpdatesFrom([{ tripId: ids[0], delay: 240, stops: [] }, { tripId: ids[1], canceled: true, stops: [] }]);
+    live.alerts = alertsFrom([{ id: 'x', header: 'Objazd ul. Testowej', description: 'Remont', routes: ['A'], stops: [], periods: [] }]);
+    live.last = Date.now(); lastSheet = 0; renderSheet();
+  });
+  await page.waitForSelector('#sheet .alert');
+  const txt = await page.$eval('#sheet', e => e.textContent);
+  assert.match(txt, /Objazd ul\. Testowej/);
+  assert.match(txt, /\+4′/);
+  assert.match(txt, /odwołany/);
+  await page.waitForSelector('#bAlerts:not([hidden])');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test('PWA: manifest i service worker, strona działa offline', async () => {
   const { page, ctx } = await open(browser, server.url);
   const manifest = await page.evaluate(async () => (await fetch('manifest.webmanifest')).json());
