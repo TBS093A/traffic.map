@@ -30,7 +30,7 @@ export function loadApp(D, extra = {}) {
   for (const f of files) { try { src += readFileSync(f, 'utf8') + '\n'; } catch (e) { if (e.code !== 'ENOENT') throw e; } }
   const names = EXPORTS.map(n => `${n}: typeof ${n} === 'undefined' ? undefined : ${n}`).join(', ');
   src += `\nglobalThis.__app = { setD(d) { D = d; }, ${names} };`;
-  const ctx = vm.createContext({ console, performance, ...extra });
+  const ctx = vm.createContext({ console, performance, URLSearchParams, TextEncoder, TextDecoder, ...extra });
   vm.runInContext(src, ctx, { filename: 'app.js' });
   const app = ctx.__app;
   app.setD(D);

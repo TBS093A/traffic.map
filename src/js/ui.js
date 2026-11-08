@@ -8,6 +8,7 @@ function updateUI(now) {
   $('#clock').textContent = fmtT(w.sec) + ':' + String(Math.floor(w.sec % 60)).padStart(2, '0');
   $('#day').textContent = dayFmt.format(new Date(ms)) + (simState.fallback ? ' · rozkład wzorcowy' : '') + (live.map.size && Date.now() - live.last < 90000 ? ' · NA ŻYWO' : '');
   if (now - lastSheet > 1000 && !sheetPressed) { lastSheet = now; renderSheet(); }
+  syncLink(now);
 }
 
 // arkusz odświeża się co sekundę: podmieniamy treść tylko gdy się zmieniła, żeby przyciski nie znikały spod palca w trakcie kliknięcia
@@ -42,7 +43,7 @@ function tripSheet(ti) {
   return `<button class="close" data-act="close">✕</button>
   <h2>${chip(tr.route)} → ${esc(tr.head)}</h2>
   <div class="sub">${esc(r.name || '')}${tr.brig ? ' · brygada ' + esc(tr.brig) : ''}<br>${status}</div>
-  <div class="btnrow"><button data-act="follow" class="${follow ? 'on' : ''}">${follow ? 'Śledzę' : 'Śledź'}</button><button data-act="route" data-r="${tr.route}">Cała linia ${esc(r.n)}</button><button data-act="fit">Pokaż trasę</button></div>
+  <div class="btnrow"><button data-act="follow" class="${follow ? 'on' : ''}">${follow ? 'Śledzę' : 'Śledź'}</button><button data-act="route" data-r="${tr.route}">Cała linia ${esc(r.n)}</button><button data-act="fit">Pokaż trasę</button>${shareBtn()}</div>
   <ul class="list">${rows}</ul>`;
 }
 
@@ -83,7 +84,7 @@ function stopSheet(si) {
   return `<button class="close" data-act="close">✕</button>
   <h2>🚏 ${esc(grp.name)}</h2><div class="sub">${multi ? grp.members.length + ' słupki · ' : ''}odjazdy w ciągu godziny · ${routes.map(r => chip(r)).join(' ')}</div>
   ${tabs}
-  <div class="btnrow"><button data-act="planfrom">🧭 Stąd</button><button data-act="planto">🧭 Dotąd</button></div>
+  <div class="btnrow"><button data-act="planfrom">🧭 Stąd</button><button data-act="planto">🧭 Dotąd</button>${favBtn(favStop(si))}${shareBtn()}</div>
   ${fbar}
   <ul class="list">${rows || `<li class="past">${stopFilter === 'act' ? 'Teraz żaden autobus nie jedzie w stronę tego przystanku.' : 'Brak odjazdów w najbliższej godzinie.'}</li>`}</ul>`;
 }
@@ -94,7 +95,7 @@ function routeSheet(ri) {
     return `<li data-trip="${b.ti}">${chip(ri)}<span class="grow">→ ${esc(tr.head)}</span><span class="mut">${b.at ? 'na przyst.' : 'dalej:'} ${esc(D.stops[ns][2])}</span></li>`; }).join('');
   return `<button class="close" data-act="close">✕</button>
   <h2>${chip(ri)} ${esc(r.name || '')}</h2><div class="sub">${mine.length ? `Na trasie: ${mine.length} ${mine.length === 1 ? 'autobus' : (mine.length % 10 >= 2 && mine.length % 10 <= 4 && (mine.length % 100 < 10 || mine.length % 100 >= 20)) ? 'autobusy' : 'autobusów'}` : 'Teraz brak autobusów tej linii na trasie.'}</div>
-  <div class="btnrow"><button data-act="fit">Pokaż trasę</button></div>
+  <div class="btnrow"><button data-act="fit">Pokaż trasę</button>${shareBtn()}</div>
   <ul class="list">${rows}</ul>`;
 }
 
@@ -121,6 +122,8 @@ $('#sheet').addEventListener('click', e => {
   const pp = e.target.closest('[data-act="planprev"]'); if (pp) { planBack(); return; }
   const sd = e.target.closest('[data-side]'); if (sd) { selSide = +sd.dataset.side; lastSheet = 0; renderSheet(); return; }
   const a = e.target.closest('[data-act],[data-stop],[data-trip]'); if (!a) return;
+  if (a.dataset.act === 'fav') { toggleFavCurrent(); return; }
+  if (a.dataset.act === 'share') { shareView(); return; }
   if (a.dataset.act === 'close') { select({ route: -1 }); return; }
   if (a.dataset.act === 'planclose') { plan.sel = -1; select({ route: -1 }); return; }
   if (a.dataset.act === 'planopts') { openOv('planOv'); renderPlanResults(); return; }
@@ -206,6 +209,7 @@ addEventListener('keydown', e => {
   else if (k === 'l') openLines();
   else if (k === '/') { e.preventDefault(); openSearch(); }
   else if (k === 'p') openPlanner();
+  else if (k === 'f') openFavs();
 });
 $('#bRotL').onclick = () => rot(-1); $('#bRotR').onclick = () => rot(1);
 $('#bZin').onclick = () => zoomAt(innerWidth / 2, innerHeight / 2, .7); $('#bZout').onclick = () => zoomAt(innerWidth / 2, innerHeight / 2, 1.4);

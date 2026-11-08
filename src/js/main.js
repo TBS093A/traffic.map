@@ -32,6 +32,8 @@ async function main() {
   setProgress(1, 'Gotowe'); resize(); updateCamera();
   $('#loading').style.display = 'none';
   addEventListener('resize', () => { resize(); lastSheet = 0; });
+  const initial = location.hash; linkLast = initial.slice(1);
   requestAnimationFrame(render);
+  requestAnimationFrame(() => applyLink(initial));           // po pierwszej klatce: arkusze potrzebują stanu symulacji
 }
 main().catch(err => { console.error(err); $('#err').textContent = 'Błąd: ' + err.message; });
