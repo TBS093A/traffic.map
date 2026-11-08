@@ -1,10 +1,17 @@
-# Postmerge: po każdym merge do main.
+# Postmerge: po każdym merge do main, który zmienia coś poza screenami i README.
 # DAST (OWASP ZAP na uruchomionej stronie) i odświeżenie screenów w README z prawdziwych danych.
+#
+# paths-ignore przerywa pętlę: merge PR-a ze screenami zmienia tylko docs/screenshots i README.md,
+# więc nie uruchamia postmerge ponownie (inaczej każdy merge screenów tworzyłby nowy PR ze screenami,
+# bo pogoda, godzina i autobusy zawsze się trochę różnią).
 name: postmerge
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "docs/screenshots/**"
+      - "README.md"
   workflow_dispatch:
   schedule:
     - cron: "17 4 * * 1"          # raz w tygodniu: świeży rozkład i OSM na screenach
@@ -48,6 +55,8 @@ jobs:
 
   screenshots:
     name: Screeny do README
+    # drugi bezpiecznik pętli: merge samego PR-a ze screenami nigdy nie generuje nowych
+    if: ${{ github.event_name != 'push' || !contains(github.event.head_commit.message, '/bot/screenshots') }}
     runs-on: ubuntu-24.04          # Playwright nie ma jeszcze Chromium dla ubuntu-latest (26.04)
     permissions:
       contents: write
