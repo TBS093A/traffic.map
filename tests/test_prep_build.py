@@ -100,6 +100,15 @@ class BuildTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 build.assemble(a)
 
+    def test_write_extras_versions_service_worker(self):
+        with tempfile.TemporaryDirectory() as d:
+            files = {os.path.basename(p) for p in build.write_extras(d, version='abc123')}
+            self.assertTrue({'sw.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'} <= files)
+            sw = read(os.path.join(d, 'sw.js'))
+            self.assertIn("'abc123'", sw)
+            self.assertNotIn('__VERSION__', sw)
+            self.assertEqual(json.loads(read(os.path.join(d, 'manifest.webmanifest')))['start_url'], './')
+
     def test_build_embeds_data(self):
         with tempfile.TemporaryDirectory() as d:
             dj, out = os.path.join(d, 'data.json'), os.path.join(d, 'index.html')

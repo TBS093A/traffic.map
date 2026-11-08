@@ -48,6 +48,20 @@ test('link z trasą wyznacza połączenie z przesiadką', async () => {
   await ctx.close();
 });
 
+test('PWA: manifest i service worker, strona działa offline', async () => {
+  const { page, ctx } = await open(browser, server.url);
+  const manifest = await page.evaluate(async () => (await fetch('manifest.webmanifest')).json());
+  assert.equal(manifest.display, 'standalone');
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload({ waitUntil: 'domcontentloaded' });          // teraz kontrolowana przez service worker
+  await page.waitForFunction(() => document.querySelector('#loading')?.style.display === 'none');
+  await ctx.setOffline(true);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => document.querySelector('#loading')?.style.display === 'none', null, { timeout: 120000 });
+  assert.equal(await page.$eval('#err', e => e.textContent), '');
+  await ctx.close();
+});
+
 test('telefon: bez poziomego przewijania, lista przystanków działa', async () => {
   const { page, ctx, errors } = await open(browser, server.url, { width: 390, height: 844, mobile: true });
   assert.ok(await page.evaluate(() => document.scrollingElement.scrollWidth <= innerWidth));

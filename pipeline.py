@@ -35,7 +35,7 @@ import zipfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from prep import prepare, REQUIRED  # noqa: E402
-from build import build, sources  # noqa: E402
+from build import build, sources, write_extras, STATIC  # noqa: E402
 import osm  # noqa: E402
 
 DEFAULTS = {
@@ -349,7 +349,8 @@ def map_hash(cache):
 # ---------------------------------------------------------------- build
 def code_hash(cfg):
     h = hashlib.sha256()
-    for p in (*sources(cfg["template"]), os.path.join(HERE, "prep.py"), os.path.join(HERE, "build.py"), os.path.join(HERE, "osm.py")):
+    static = [os.path.join(STATIC, f) for f in sorted(os.listdir(STATIC))] if os.path.isdir(STATIC) else []
+    for p in (*sources(cfg["template"]), *static,os.path.join(HERE, "prep.py"), os.path.join(HERE, "build.py"), os.path.join(HERE, "osm.py")):
         h.update(sha256_file(p).encode())
     return h.hexdigest()
 
@@ -474,9 +475,14 @@ def run(cfg, force=False):
     return 2
 
 
+def sha_short(path):
+    return sha256_file(path)[:12]
+
+
 def publish(tmp_html, stats, src, path, sha, key, state, cfg):
     index = os.path.join(cfg["out_dir"], "index.html")
     os.replace(tmp_html, index)                      # atomowa podmiana
+    write_extras(cfg["out_dir"], version=sha_short(index))   # manifest, service worker, ikony
     for f in os.listdir(cfg["out_dir"]):             # posprzątaj resztki po fallbacku
         if f.startswith(".index.html.tmp"):
             os.remove(os.path.join(cfg["out_dir"], f))
