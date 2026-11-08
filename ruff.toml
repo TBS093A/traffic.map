@@ -3,5 +3,7 @@ target-version = "py39"
 
 [lint]
 select = ["E", "F", "W", "B"]
-# E731: krótkie lambdy są tu czytelniejsze niż def; E741: x, l, O w kodzie geometrii
-ignore = ["E501", "E731", "E741"]
+# E731: krótkie lambdy są tu czytelniejsze niż def; E741: x, l, O w kodzie geometrii;
+# B007: rozpakowanie krotek kursów nazywa wszystkie pola dla czytelności; B023: funkcje pomocnicze w pętli
+# są wywoływane od razu w tej samej iteracji
+ignore = ["E501", "E731", "E741", "B007", "B023"]
