@@ -235,12 +235,16 @@ Testy działają na małej, sztucznej sieci z `tests/fixture.py`, bez pobierania
 |---|---|---|
 | `premerge` | PR i push na gałąź inną niż `main` | ruff, składnia JS, actionlint, testy (Python 3.9 i 3.12, Node), e2e, SAST (CodeQL, Semgrep), SCA (dependency review, OSV-Scanner), sekrety (gitleaks) |
 | `postmerge` | merge do `main` (zmiany w kodzie), ręcznie | DAST (OWASP ZAP na `proxy.mjs`), pełny pipeline na prawdziwych danych, nowe screeny jako PR |
-| `release` | zamknięcie milestone'a `vX.Y.Z` albo ręcznie | tag, notatki z PR-ów milestone'a pogrupowane etykietami, `index.html` i paczka zip jako załączniki |
+| `release` | zamknięcie milestone'a `vX.Y.Z` albo ręcznie | tag, notatki z PR-ów milestone'a pogrupowane etykietami, `index.html` i paczka zip jako załączniki, deploy strony na GitHub Pages |
 
 **Wydania:** przypisz PR-y do milestone'a nazwanego jak wersja (np. `v1.2.0`) i zamknij go. Etykiety PR-ów
 (`feature`, `bug`, `security`, `docs`, `ci`) wyznaczają sekcje notatek, a `skip-changelog` pomija PR.
 Postmerge otwiera PR ze screenami; w ustawieniach repozytorium trzeba pozwolić Actions tworzyć PR-y
 (Settings → Actions → General → „Allow GitHub Actions to create and approve pull requests”).
+
+**GitHub Pages:** każde wydanie (poza szkicem) publikuje stronę na Pages; raz trzeba ustawić
+Settings → Pages → Source: „GitHub Actions”. Pages to hosting statyczny bez `proxy.mjs`, więc strona pokazuje
+autobusy według rozkładu, bez pozycji na żywo. Rozkład na Pages jest z dnia wydania.
 
 ## Ograniczenia
 - **Rzeźba terenu** ma rozdzielczość ok. 90 m (model DEM), więc skarpy i nasypy są wygładzone. Budynki stoją na wysokości
