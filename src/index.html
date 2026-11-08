@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#141622">
+<title>Rzeszów w pikselach — komunikacja miejska</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/*@include style.css*/
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="badges"></div>
+
+<div id="top" class="panel">
+  <div class="row"><span id="title">RZESZÓW W PIKSELACH</span></div>
+  <div class="row"><span id="clock">--:--:--</span><span id="day"></span></div>
+  <div class="row" id="speeds">
+    <button data-speed="0" title="Pauza">❚❚</button>
+    <button data-speed="1" class="on">1×</button>
+    <button data-speed="10">10×</button>
+    <button data-speed="60">60×</button>
+    <button data-now="1" title="Wróć do teraz">Teraz</button>
+  </div>
+</div>
+
+<div id="tools">
+  <button id="bSearch" title="Szukaj (/)">🔍</button>
+  <button id="bLines" title="Linie">🚌</button>
+  <button id="bStops" title="Przystanki">🚏</button>
+  <button id="bPlan" title="Wyznacz trasę (P)">🧭</button>
+  <button id="bSet" title="Ustawienia">⚙</button>
+</div>
+<div id="nav">
+  <button id="bRotL" title="Obróć (Q)">⟲</button>
+  <button id="bRotR" title="Obróć (E)">⟳</button>
+  <button id="bZin" title="Przybliż (+)">+</button>
+  <button id="bZout" title="Oddal (−)">−</button>
+</div>
+
+<div id="sheet" class="panel"></div>
+
+<div id="linesOv" class="overlay"><div class="panel">
+  <h3>Linie ZTM <button data-close="linesOv" style="min-height:32px;width:34px;padding:0">✕</button></h3>
+  <div class="fbar"><button data-lf="all">Wszystkie</button><button data-lf="act">Aktywne (na trasie)</button></div>
+  <div id="lineGrid"></div>
+  <p class="note">Wybierz linię, żeby podświetlić jej trasę i autobusy.</p>
+</div></div>
+
+<div id="searchOv" class="overlay"><div class="panel">
+  <h3>Szukaj <button data-close="searchOv" style="min-height:32px;width:34px;padding:0">✕</button></h3>
+  <input type="text" id="q" placeholder="numer linii, kierunek albo przystanek…" autocomplete="off" spellcheck="false">
+  <div id="results"></div>
+</div></div>
+
+<div id="stopsOv" class="overlay"><div class="panel">
+  <h3>Przystanki <button data-close="stopsOv" style="min-height:32px;width:34px;padding:0">✕</button></h3>
+  <input type="text" id="sq" placeholder="filtruj przystanki…" autocomplete="off" spellcheck="false">
+  <div id="stopList"></div>
+</div></div>
+
+<div id="planOv" class="overlay"><div class="panel">
+  <h3>Wyznacz trasę <button data-close="planOv" style="min-height:32px;width:34px;padding:0">✕</button></h3>
+  <div class="pf"><label>Skąd</label><input type="text" id="pFrom" placeholder="adres, ulica albo przystanek" autocomplete="off" spellcheck="false"><div class="sug" id="sFrom"></div></div>
+  <div class="pf"><label>Dokąd</label><input type="text" id="pTo" placeholder="adres, ulica albo przystanek" autocomplete="off" spellcheck="false"><div class="sug" id="sTo"></div></div>
+  <div class="btnrow"><button id="pSwap" title="Zamień">⇅</button><input type="time" id="pTime" style="width:110px"><button id="pNow">Teraz</button><button id="pGo" class="on" style="flex:1">Szukaj połączeń</button></div>
+  <div id="pRes"></div>
+</div></div>
+
+<div id="setOv" class="overlay"><div class="panel">
+  <h3>Ustawienia <button data-close="setOv" style="min-height:32px;width:34px;padding:0">✕</button></h3>
+  <div class="set">
+    <label>Rozmiar piksela</label><div class="seg" data-opt="ps"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button></div>
+    <label>Paleta</label><div class="seg" data-opt="pal"><button data-v="1">wł.</button><button data-v="0">wył.</button></div>
+    <label>Dithering</label><div class="seg" data-opt="dith"><button data-v="1">wł.</button><button data-v="0">wył.</button></div>
+    <label>Kontury</label><div class="seg" data-opt="out"><button data-v="1">wł.</button><button data-v="0">wył.</button></div>
+    <label>Pora dnia</label><div class="seg" data-opt="tod"><button data-v="auto">auto</button><button data-v="day">dzień</button><button data-v="night">noc</button></div>
+    <label>Podpisy ulic i przystanków</label><div class="seg" data-opt="lbl"><button data-v="1">wł.</button><button data-v="0">wył.</button></div>
+    <label>Budynki i drzewa</label><div class="seg" data-opt="bld"><button data-v="1">wł.</button><button data-v="0">wył.</button></div>
+    <label>Ustaw godzinę</label><div class="seg"><input type="time" id="setTime" step="60" style="width:120px"></div>
+  </div>
+  <div style="margin-bottom:12px">
+    <label style="color:var(--mut)">Pozycje na żywo — adres proxy (JSON)</label>
+    <div class="btnrow"><input type="text" id="liveUrl" placeholder="http://localhost:8787/vehicles.json"><button id="liveGo">Połącz</button></div>
+    <div class="note" id="liveStatus">Tryb rozkładowy: autobusy jeżdżą według rozkładu.</div>
+    <p class="note">W podglądzie w Claude połączenia z innymi serwerami są blokowane. Na żywo działa po otwarciu strony z lokalnego serwera proxy (<code>proxy.mjs</code>).</p>
+  </div>
+  <div class="note" id="about"></div>
+</div></div>
+
+<div id="attr"></div>
+<div id="toast" class="panel"></div>
+<div id="hint" class="panel">Przeciągnij, by przesuwać · kółko / szczypnięcie: zoom · Q/E: obrót</div>
+<div id="loading"><div>RZESZÓW W PIKSELACH</div><div class="bar"><i id="lbar"></i></div><div id="lmsg" style="font-size:14px;color:#9aa2c0">Wczytywanie rozkładu…</div><div id="err"></div></div>
+
+<script id="gtfs" type="application/octet-stream">/*__DATA__*/</script>
+<script>/* earcut 2.2.4 (c) 2016 Mapbox, licencja ISC: https://github.com/mapbox/earcut */
+/*@include vendor/earcut.js*/
+</script>
+<script>
+/*@include js/util.js*/
+/*@include js/data.js*/
+/*@include js/time.js*/
+/*@include js/gl.js*/
+/*@include js/shaders.js*/
+/*@include js/gpu.js*/
+/*@include js/city.js*/
+/*@include js/world.js*/
+/*@include js/camera.js*/
+/*@include js/sim.js*/
+/*@include js/render.js*/
+/*@include js/ui.js*/
+/*@include js/live.js*/
+/*@include js/labels.js*/
+/*@include js/stops.js*/
+/*@include js/geocode.js*/
+/*@include js/planner.js*/
+/*@include js/plan-ui.js*/
+/*@include js/main.js*/
+</script>
+</body>
+</html>

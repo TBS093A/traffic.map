@@ -36,7 +36,7 @@ import zipfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from prep import prepare, REQUIRED  # noqa: E402
-from build import build  # noqa: E402
+from build import build, sources  # noqa: E402
 import osm  # noqa: E402
 
 DEFAULTS = {
@@ -46,7 +46,7 @@ DEFAULTS = {
     ],
     "work_dir": "work",            # cache, stan, archiwum, logi
     "out_dir": "dist",             # tu ląduje gotowy index.html
-    "template": "index.src.html",
+    "template": "src/index.html",  # szablon strony; dołącza moduły z src/ (zob. build.py)
     "keep_archives": 14,
     "min_routes": 20,
     "min_trips": 1000,
@@ -350,7 +350,7 @@ def map_hash(cache):
 # ---------------------------------------------------------------- build
 def code_hash(cfg):
     h = hashlib.sha256()
-    for p in (cfg["template"], os.path.join(HERE, "prep.py"), os.path.join(HERE, "build.py"), os.path.join(HERE, "osm.py")):
+    for p in (*sources(cfg["template"]), os.path.join(HERE, "prep.py"), os.path.join(HERE, "build.py"), os.path.join(HERE, "osm.py")):
         h.update(sha256_file(p).encode())
     return h.hexdigest()
 
