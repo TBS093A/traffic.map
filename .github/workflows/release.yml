@@ -89,7 +89,8 @@ jobs:
           draft=(); [ "$DRAFT" = true ] && draft=(--draft)
           gh release create "$VERSION" --target "$TARGET" --title "Rzeszów w pikselach $VERSION" \
             --notes-file notes.md "${draft[@]}" \
-            dist/index.html dist/build-info.json "rzeszow-w-pikselach-$VERSION.zip"
+            dist/index.html dist/build-info.json work/summary.json "rzeszow-w-pikselach-$VERSION.zip"
+      # summary.json (streszczenie rozkładu) służy data-sync do wykrywania i opisu zmian w rozkładzie
       # ta sama strona trafia na GitHub Pages (job pages poniżej); szkic wydania niczego nie publikuje
       - name: Strona dla GitHub Pages
         if: ${{ !inputs.draft }}

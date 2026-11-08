@@ -1,0 +1,135 @@
+# Codzienna synchronizacja rozkładu: gdy ZTM opublikuje nową paczkę GTFS, powstaje wydanie z poprawką (vX.Y.Z+1)
+# i świeża strona idzie na GitHub Pages. Bez PR-ów i commitów: paczki GTFS nie leżą w repo, tylko w wydaniach.
+#
+# Strona jest budowana z kodu OSTATNIEGO WYDANIA (nie z main), więc na Pages nigdy nie trafia niewydany kod.
+# Zmiana jest wykrywana po sumie paczki GTFS z build-info.json ostatniego wydania; nowa paczka = nowe wydanie.
+# Notatki to porównanie z poprzednim rozkładem (summary.json z ostatniego wydania).
+name: data-sync
+
+on:
+  schedule:
+    - cron: "37 3 * * *"          # codziennie ok. 4:37/5:37 w Polsce, po nocnych publikacjach ZTM
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release                   # nie nachodzi na ręczne wydanie z milestone'a
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    outputs:
+      released: ${{ steps.cmp.outputs.changed }}
+    steps:
+      - name: Ostatnie wydanie
+        id: last
+        run: |
+          tag=$(gh release view --repo "$REPO" --json tagName --jq .tagName 2>/dev/null || true)
+          if [ -z "$tag" ]; then echo "::notice::Brak wydań — najpierw zrób pierwsze wydanie z milestone'a"; fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v7
+        if: steps.last.outputs.tag != ''
+        with:
+          ref: ${{ steps.last.outputs.tag }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        if: steps.last.outputs.tag != ''
+        with:
+          python-version: "3.12"
+      - name: Dane ostatniego wydania
+        if: steps.last.outputs.tag != ''
+        env:
+          TAG: ${{ steps.last.outputs.tag }}
+        run: |
+          mkdir -p prev work
+          gh release download "$TAG" --repo "$REPO" --dir prev --pattern build-info.json --pattern summary.json || true
+          # poprzednie streszczenie rozkładu -> pipeline policzy zmiany (linie nowe, zlikwidowane, zmienione)
+          [ -f prev/summary.json ] && cp prev/summary.json work/summary.json || true
+      - name: Cache danych (GTFS, OSM, adresy, teren)
+        if: steps.last.outputs.tag != ''
+        uses: actions/cache@v6
+        with:
+          path: work/cache
+          key: rwp-data-${{ github.run_id }}
+          restore-keys: rwp-data-
+      - name: Pipeline
+        if: steps.last.outputs.tag != ''
+        run: python3 pipeline.py --force -v
+      - name: Czy rozkład się zmienił
+        id: cmp
+        if: steps.last.outputs.tag != ''
+        run: |
+          new=$(jq -r .sha256 dist/build-info.json)
+          old=$(jq -r '.sha256 // ""' prev/build-info.json 2>/dev/null || true)
+          echo "paczka: $old -> $new"
+          if [ "$new" = "$old" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"; echo "::notice::Rozkład bez zmian"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Wersja
+        id: v
+        if: steps.cmp.outputs.changed == 'true'
+        env:
+          TAG: ${{ steps.last.outputs.tag }}
+        run: |
+          next=$(git tag -l 'v*' --sort=-v:refname | head -1 | awk -F. -v OFS=. '{sub(/-.*/, "", $3); $3++; print}')
+          if git rev-parse -q --verify "refs/tags/$next" > /dev/null; then echo "::error::Tag $next już istnieje"; exit 1; fi
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+      - name: Notatki
+        if: steps.cmp.outputs.changed == 'true'
+        env:
+          TAG: ${{ steps.last.outputs.tag }}
+        run: |
+          {
+            echo "Nowy rozkład ZTM Rzeszów (kod strony jak w $TAG)."
+            echo
+            jq -r '"Rozkład: \(.start)–\(.end), \(.routes) linii, \(.trips) kursów (źródło: \(.source))."' dist/build-info.json
+            if [ -f dist/changes.json ]; then
+              echo
+              echo "## Zmiany w rozkładzie"
+              jq -r '
+                (if (.added_routes | length) > 0 then "- Nowe linie: \(.added_routes | join(", "))" else empty end),
+                (if (.removed_routes | length) > 0 then "- Zlikwidowane linie: \(.removed_routes | join(", "))" else empty end),
+                (if (.changed | length) > 0 then "- Zmienione linie: \(.changed | length)" else empty end)
+              ' dist/changes.json
+            fi
+          } > notes.md
+          cat notes.md
+      - name: Wydanie
+        if: steps.cmp.outputs.changed == 'true'
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          TAG: ${{ steps.last.outputs.tag }}
+        run: |
+          (cd dist && zip -9 -r "../rzeszow-w-pikselach-$VERSION.zip" . -x '.*')
+          gh release create "$VERSION" --repo "$REPO" --target "$(git rev-parse "$TAG^{commit}")" \
+            --title "Rzeszów w pikselach $VERSION (rozkład)" --notes-file notes.md \
+            dist/index.html dist/build-info.json work/summary.json "rzeszow-w-pikselach-$VERSION.zip"
+      - name: Strona dla GitHub Pages
+        if: steps.cmp.outputs.changed == 'true'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist/
+
+  pages:
+    needs: sync
+    if: needs.sync.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v5

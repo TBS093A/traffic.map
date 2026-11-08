@@ -236,6 +236,7 @@ Testy działają na małej, sztucznej sieci z `tests/fixture.py`, bez pobierania
 | `premerge` | PR i push na gałąź inną niż `main` | ruff, składnia JS, actionlint, testy (Python 3.9 i 3.12, Node), e2e, SAST (CodeQL, Semgrep), SCA (dependency review, OSV-Scanner), sekrety (gitleaks) |
 | `postmerge` | merge do `main` (zmiany w kodzie), ręcznie | DAST (OWASP ZAP na `proxy.mjs`), pełny pipeline na prawdziwych danych, nowe screeny jako PR |
 | `release` | zamknięcie milestone'a `vX.Y.Z` albo ręcznie | tag, notatki z PR-ów milestone'a pogrupowane etykietami, `index.html` i paczka zip jako załączniki, deploy strony na GitHub Pages |
+| `data-sync` | codziennie, ręcznie | nowy rozkład ZTM → wydanie z poprawką i deploy na Pages; bez zmian nic nie robi |
 
 **Wydania:** przypisz PR-y do milestone'a nazwanego jak wersja (np. `v1.2.0`) i zamknij go. Etykiety PR-ów
 (`feature`, `bug`, `security`, `docs`, `ci`) wyznaczają sekcje notatek, a `skip-changelog` pomija PR.
@@ -244,7 +245,12 @@ Postmerge otwiera PR ze screenami; w ustawieniach repozytorium trzeba pozwolić 
 
 **GitHub Pages:** każde wydanie (poza szkicem) publikuje stronę na Pages; raz trzeba ustawić
 Settings → Pages → Source: „GitHub Actions”. Pages to hosting statyczny bez `proxy.mjs`, więc strona pokazuje
-autobusy według rozkładu, bez pozycji na żywo. Rozkład na Pages jest z dnia wydania.
+autobusy według rozkładu, bez pozycji na żywo.
+
+**Synchronizacja rozkładu** (`data-sync`, codziennie): pipeline pobiera paczki GTFS i, jeśli ZTM opublikował nowy rozkład,
+tworzy wydanie z poprawką (np. `v1.2.0` → `v1.2.1`) z notatkami o zmienionych liniach i wdraża stronę na Pages.
+Strona jest budowana z kodu ostatniego wydania, więc niewydany kod z `main` nie trafia na Pages. Bez PR-ów:
+paczki GTFS nie są w repozytorium. Kolejny milestone nazwij więc wersją wyższą niż ostatnie wydanie.
 
 ## Ograniczenia
 - **Rzeźba terenu** ma rozdzielczość ok. 90 m (model DEM), więc skarpy i nasypy są wygładzone. Budynki stoją na wysokości
