@@ -112,5 +112,8 @@ a{color:var(--acc)}
 .alert summary{cursor:pointer}
 .alert p{margin:6px 0}
 .remind{align-items:center;flex-wrap:wrap}
+:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.list li:focus-visible,.chip:focus-visible{outline-offset:-3px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 button:disabled{opacity:.4;cursor:default}
 @media (max-width:600px){#clock{font-size:22px;min-width:100px}#title{font-size:13px}#sheet{max-height:42vh}}
