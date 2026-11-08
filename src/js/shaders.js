@@ -5,14 +5,15 @@ float h21(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+45.32); return fra
 float vnoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f);
   return mix(mix(h21(i),h21(i+vec2(1,0)),f.x), mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),f.x), f.y); }
 vec3 toon(vec3 n){ float d=max(dot(n,uSun),0.); d=floor(d*3.+.35)/3.; return uAmb+uSunCol*d; }
-// pora roku: liście i trawa jesienią i zimą, śnieg na poziomych powierzchniach (foliage=1: zieleń, którą wolno przebarwić)
+// pora roku: liście jesienią, sucha trawa zimą, śnieg na poziomych powierzchniach
+// foliage: 1 = liście drzew (pełne przebarwienie), .5 = trawa (lekko żółknie), 0 = bez zmian koloru
 uniform float uSnow; uniform float uAutumn; uniform float uWinter; uniform float uWet;
 vec3 seasonal(vec3 c, vec3 n, vec2 w, float foliage){
-  float green=clamp((c.g-max(c.r,c.b))*6.,0.,1.)*foliage;
+  float green=clamp((c.g-max(c.r,c.b))*6.,0.,1.)*step(.01,foliage);
   if(green>0.){
-    float h=h21(floor(w/7.));
-    vec3 aut=h<.45?vec3(.74,.43,.15):(h<.8?vec3(.66,.58,.2):vec3(.58,.22,.13));
-    c=mix(c,aut*(.55+.6*length(c)),uAutumn*green*(.55+.45*step(.3,h)));
+    float h=h21(floor(w/7.)), leaves=step(.75,foliage);
+    vec3 aut=leaves>.5?(h<.45?vec3(.74,.43,.15):(h<.8?vec3(.66,.58,.2):vec3(.58,.22,.13))):vec3(.5,.52,.28);
+    c=mix(c,aut*(.55+.6*length(c)),uAutumn*green*(leaves>.5?.55+.45*step(.3,h):.3));
     vec3 dry=vec3(dot(c,vec3(.3,.5,.2)))*vec3(1.05,.98,.84);
     c=mix(c,dry,uWinter*green*.75);
   }
@@ -35,7 +36,7 @@ void main(){
   float r=length(p);
   float n=vnoise(p/90.)*.6+vnoise(p/23.)*.4;
   vec3 col = n<.42?vec3(.27,.43,.23):(n<.62?vec3(.33,.5,.26):vec3(.4,.56,.29));
-  if(uReal==1){ oC=vec4(seasonal(col,vec3(0,1,0),p,1.)*toon(vec3(0,1,0)),1.); oN=vec4(.5,1.,.5,1.); return; }
+  if(uReal==1){ oC=vec4(seasonal(col,vec3(0,1,0),p,.5)*toon(vec3(0,1,0)),1.); oN=vec4(.5,1.,.5,1.); return; }
   // pola uprawne poza miastem
   if(dd>200. && r>2600.){
     vec2 cell=floor(p/vec2(140.,90.)); float h=h21(cell);
@@ -49,7 +50,7 @@ void main(){
   float urban = exp(-r/2300.);
   float paveW = mix(10., 34., urban) + (vnoise(p/60.)-.5)*14.;
   if(dm < paveW || (r<900. && vnoise(p/70.) > .35)) col = mix(vec3(.66,.62,.56), vec3(.6,.57,.52), step(.6,vnoise(p/14.)));
-  oC=vec4(seasonal(col,vec3(0,1,0),p,1.)*toon(vec3(0,1,0)),1.); oN=vec4(.5,1.,.5,1.);
+  oC=vec4(seasonal(col,vec3(0,1,0),p,.5)*toon(vec3(0,1,0)),1.); oN=vec4(.5,1.,.5,1.);
 }`);
 
 // --- drogi i podświetlenie trasy
@@ -142,8 +143,12 @@ void main(){
     if(vLN.x<-.5 && v<.38) emis+=vec3(.9,.1,.1)*uNight*.8;
     if(k==5) emis+=vec3(.22)*(.6+.4*sin(uTime*6.));
   } else if(k==3){ if(vLN.y>.5) col=vec3(.86,.86,.84); }
+  else if(k==13){                  // dach dwuspadowy: rzędy dachówek na połaciach, szczyty w kolorze tynku
+    if(abs(vLN.x)>.5) col=vec3(.88,.82,.7);
+    else { col*=.86+.14*step(.5,fract(vLoc.y*1.7)); col*=.94+.06*step(.5,fract((vLoc.x+vSeed)/1.1)); }
+  }
   else if(k==6){ flag=0.; emis=vec3(.95,.82,.3)*(.6+.4*sin(uTime*5.)); }
-  if(k<=3||(k>=7&&k<=12)) col=seasonal(col,n,vWP.xz,k==1?1.:0.);   // zieleń drzew się przebarwia, śnieg tylko na tym, co stoi
+  if(k<=3||(k>=7&&k<=13)) col=seasonal(col,n,vWP.xz,k==1?1.:0.);   // zieleń drzew się przebarwia, śnieg tylko na tym, co stoi
   oC=vec4(col*toon(n)+emis, flag>.5?1.:.5);
   oN=vec4(n*.5+.5,1.);
 }`;
@@ -154,7 +159,8 @@ out vec3 vNor; out vec3 vLN; out vec3 vCol; out vec3 vLoc; out vec3 vSize; out v
 void main(){
   vec3 l=aPos*iB.xyz; float c=cos(iA.w), s=sin(iA.w);
   vec3 r=vec3(l.x*c+l.z*s, l.y, -l.x*s+l.z*c);
-  vNor=vec3(aNor.x*c+aNor.z*s, aNor.y, -aNor.x*s+aNor.z*c);
+  vec3 sn=normalize(aNor/max(iB.xyz,vec3(1e-3)));   // normalna po skalowaniu (połać dachu zależy od proporcji)
+  vNor=vec3(sn.x*c+sn.z*s, sn.y, -sn.x*s+sn.z*c);
   vLN=aNor; vCol=iC.rgb; vLoc=l; vSize=iB.xyz; vKind=iB.w; vSeed=iC.w;
   vWP=iA.xyz+r; gl_Position=uVP*vec4(vWP,1.);
 }`,
@@ -197,7 +203,7 @@ void main(){
   else if(vC==14) c=mix(vec3(.66,.33,.24),vec3(.6,.3,.22),step(.6,n));
   else if(vC==15) c=vec3(.4,.39,.4);
   else { float w=step(.8,vnoise(vec2(p.x/26.+uTime*.25,p.y/7.))); c=mix(vec3(.17,.34,.54),vec3(.27,.45,.66),w); }
-  if(vC<16) c=seasonal(c,vec3(0,1,0),p,vC==13?0.:1.);   // murawa boiska zostaje zielona
+  if(vC<16) c=seasonal(c,vec3(0,1,0),p,vC==13?0.:.5);   // trawa; murawa boiska zostaje zielona
   oC=vec4(c*toon(vec3(0,1,0)),1.); oN=vec4(.5,1.,.5,1.);
 }`);
 // --- post-processing: kontury, paleta, dithering, skalowanie bez wygładzania
@@ -261,6 +267,16 @@ const palF = new Float32Array(PALETTE.length * 3);
 PALETTE.forEach((h, i) => { for (let j = 0; j < 3; j++) palF[i * 3 + j] = parseInt(h.slice(1 + 2 * j, 3 + 2 * j), 16) / 255; });
 
 // geometria sześcianu (y od 0 do 1)
+// graniastosłup dachu dwuspadowego: podstawa 1×1 na y=0, kalenica wzdłuż x na y=1 (18 wierzchołków: 2 połacie i 2 szczyty)
+function prismGeo() {
+  const out = [], V = (p, n) => out.push(...p, ...n);
+  for (const sz of [1, -1]) {                       // połać od strony +z i -z
+    const n = [0, .5, sz], a = [-.5, 0, .5 * sz], b = [.5, 0, .5 * sz], c = [.5, 1, 0], d = [-.5, 1, 0];
+    for (const p of [a, b, c, a, c, d]) V(p, n);
+  }
+  for (const sx of [1, -1]) for (const p of [[.5 * sx, 0, -.5], [.5 * sx, 0, .5], [.5 * sx, 1, 0]]) V(p, [sx, 0, 0]);
+  return new Float32Array(out);
+}
 function cubeGeo() {
   const F = [[[1,0,0],[0,0,1],[0,1,0]],[[-1,0,0],[0,0,-1],[0,1,0]],[[0,1,0],[1,0,0],[0,0,-1]],[[0,-1,0],[1,0,0],[0,0,1]],[[0,0,1],[-1,0,0],[0,1,0]],[[0,0,-1],[1,0,0],[0,1,0]]];
   const out = [];

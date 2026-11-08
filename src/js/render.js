@@ -48,7 +48,7 @@ function render(now) {
   common(boxP);
   if (opt.bld && WORLD) {
     const lvl = lodLevel(), vb = viewBounds();
-    drawTiles(WORLD.boxes, lvl, vb); drawTiles(WORLD.trees, lvl, vb);
+    drawTiles(WORLD.boxes, lvl, vb); drawTiles(WORLD.roofs, lvl, vb); drawTiles(WORLD.trees, lvl, vb);
     common(meshP); drawMesh(lvl, vb); common(boxP);
   } else if (opt.bld) { gl.bindVertexArray(staticBox.vao); gl.drawArraysInstanced(gl.TRIANGLES, 0, 36, staticBox.count); }
   syncStops(); gl.bindVertexArray(stopBox.vao); gl.drawArraysInstanced(gl.TRIANGLES, 0, 36, stopBox.count);
