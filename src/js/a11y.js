@@ -23,6 +23,10 @@ function setupA11y() {
   $('#nav').setAttribute('role', 'toolbar'); $('#nav').setAttribute('aria-label', 'Widok mapy');
   $('#speeds').setAttribute('role', 'group'); $('#speeds').setAttribute('aria-label', 'Tempo symulacji');
   $('#clock').setAttribute('aria-label', 'Godzina symulacji');
+  // pola formularzy: etykiety dla czytnika (placeholder nie jest etykietą), „Skąd”/„Dokąd” powiązane z polami
+  const LABELS = { q: 'Szukaj linii albo przystanku', sq: 'Filtruj przystanki', pTime: 'Godzina wyjazdu', setTime: 'Ustaw godzinę symulacji', liveUrl: 'Adres serwera z danymi na żywo' };
+  for (const [id, text] of Object.entries(LABELS)) { const el = document.getElementById(id); if (el && !el.hasAttribute('aria-label')) el.setAttribute('aria-label', text); }
+  for (const pf of document.querySelectorAll('.pf')) { const l = pf.querySelector('label'), i = pf.querySelector('input'); if (l && i) l.htmlFor = i.id; }
   for (const ov of document.querySelectorAll('.overlay')) {
     const h = ov.querySelector('h3'), p = ov.querySelector('.panel');
     if (h && !h.id) h.id = ov.id + 'Title';
