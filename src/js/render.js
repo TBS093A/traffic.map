@@ -8,7 +8,7 @@ function render(now) {
   simState = computeBuses(ms); buses = simState.buses;
   if (follow && selTrip >= 0) { const b = buses.find(b => b.ti === selTrip); if (b) { cam.x = lerp(cam.x, b.x, Math.min(1, dt * 4)); cam.z = lerp(cam.z, -b.y, Math.min(1, dt * 4)); } }
   updateCamera();
-  const sun = sunState(simState.w.month, simState.w.sec);
+  const sun = sunState(simState.w.month, simState.w.sec, simState.w.ymd), season = seasonState(simState.w), fx = sun.fx;
   const nDyn = fillDyn(); setHighlight();
 
   gl.bindFramebuffer(gl.FRAMEBUFFER, R.fbo);
@@ -17,7 +17,8 @@ function render(now) {
   gl.clearBufferfv(gl.COLOR, 0, [...bg, 1]); gl.clearBufferfv(gl.COLOR, 1, [.5, 1, .5, 1]); gl.clearBufferfi(gl.DEPTH_STENCIL, 0, 1, 0);
   gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.disable(gl.BLEND);
   const t = now / 1000;
-  const common = P => { gl.useProgram(P.p); gl.uniformMatrix4fv(P.u.uVP, false, VP); gl.uniform3fv(P.u.uSun, sun.sun); gl.uniform3fv(P.u.uSunCol, sun.sunCol); gl.uniform3fv(P.u.uAmb, sun.amb); if (P.u.uNight) gl.uniform1f(P.u.uNight, sun.night); if (P.u.uTime) gl.uniform1f(P.u.uTime, t); };
+  const common = P => { gl.useProgram(P.p); gl.uniformMatrix4fv(P.u.uVP, false, VP); gl.uniform3fv(P.u.uSun, sun.sun); gl.uniform3fv(P.u.uSunCol, sun.sunCol); gl.uniform3fv(P.u.uAmb, sun.amb); if (P.u.uNight) gl.uniform1f(P.u.uNight, sun.night); if (P.u.uTime) gl.uniform1f(P.u.uTime, t);
+    if (P.u.uSnow) gl.uniform1f(P.u.uSnow, season.snow); if (P.u.uAutumn) gl.uniform1f(P.u.uAutumn, season.autumn); if (P.u.uWinter) gl.uniform1f(P.u.uWinter, season.winter); if (P.u.uWet) gl.uniform1f(P.u.uWet, fx.wet); };
 
   common(groundP); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, R.distTex); gl.uniform1i(groundP.u.uDist, 0); gl.uniform1f(groundP.u.uExt, EXT); gl.uniform1f(groundP.u.uTexel, 2 * cam.half / R.low[1]); gl.uniform1i(groundP.u.uReal, WORLD ? 1 : 0); gl.bindVertexArray(groundV.vao); gl.drawArrays(gl.TRIANGLES, 0, 6);
   const texel = 2 * cam.half / R.low[1];
@@ -60,6 +61,7 @@ function render(now) {
   gl.uniform1i(postP.u.uPal, opt.pal); gl.uniform1i(postP.u.uDith, opt.dith); gl.uniform1i(postP.u.uOut, opt.out);
   gl.uniform1f(postP.u.uThr, 1.6 / (camB.far - camB.near));
   gl.uniform3fv(postP.u.uPalette, palF); gl.uniform1i(postP.u.uPalN, PALETTE.length);
+  gl.uniform1f(postP.u.uRain, fx.rain); gl.uniform1f(postP.u.uSnowFall, fx.snowFall); gl.uniform1f(postP.u.uFog, fx.fog); gl.uniform1f(postP.u.uTime, t);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
   drawLabels();
 

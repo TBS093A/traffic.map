@@ -24,6 +24,7 @@
 <div id="top" class="panel">
   <div class="row"><span id="title">RZESZÓW W PIKSELACH</span></div>
   <div class="row"><span id="clock">--:--:--</span><span id="day"></span></div>
+  <div class="row" id="wx" hidden></div>
   <div class="row" id="speeds">
     <button data-speed="0" title="Pauza">❚❚</button>
     <button data-speed="1" class="on">1×</button>
@@ -99,6 +100,8 @@
     <label>Dithering</label><div class="seg" data-opt="dith"><button data-v="1">wł.</button><button data-v="0">wył.</button></div>
     <label>Kontury</label><div class="seg" data-opt="out"><button data-v="1">wł.</button><button data-v="0">wył.</button></div>
     <label>Pora dnia</label><div class="seg" data-opt="tod"><button data-v="auto">auto</button><button data-v="day">dzień</button><button data-v="night">noc</button></div>
+    <label>Pogoda (Open-Meteo)</label><div class="seg" data-opt="wx"><button data-v="auto">na żywo</button><button data-v="off">wył.</button></div>
+    <label>Pora roku</label><div class="seg" data-opt="season"><button data-v="auto">auto</button><button data-v="spring">wiosna</button><button data-v="summer">lato</button><button data-v="autumn">jesień</button><button data-v="winter">zima</button></div>
     <label>Podpisy ulic i przystanków</label><div class="seg" data-opt="lbl"><button data-v="1">wł.</button><button data-v="0">wył.</button></div>
     <label>Budynki i drzewa</label><div class="seg" data-opt="bld"><button data-v="1">wł.</button><button data-v="0">wył.</button></div>
     <label>Ustaw godzinę</label><div class="seg"><input type="time" id="setTime" step="60" style="width:120px"></div>
@@ -132,6 +135,7 @@
 /*@include js/city.js*/
 /*@include js/world.js*/
 /*@include js/camera.js*/
+/*@include js/weather.js*/
 /*@include js/sim.js*/
 /*@include js/render.js*/
 /*@include js/ui.js*/
