@@ -12,6 +12,7 @@ on:
     paths-ignore:
       - "docs/screenshots/**"
       - "README.md"
+      - ".github/**"               # zmiany samego CI nie zmieniają strony, więc nie dają nowych screenów
   workflow_dispatch:              # ręcznie, gdy screeny mają się odświeżyć bez zmian w kodzie
 
 permissions:
