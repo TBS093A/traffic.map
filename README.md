@@ -37,6 +37,8 @@ Screeny pokazują rozkład i dane OSM z 2026-11-08.
 | `prep.py` | GTFS → kompaktowy `data.json` (rzutowanie, upraszczanie tras, wzorce kursów) |
 | `osm.py` | warstwy OpenStreetMap → kompaktowa mapa (budynki, teren, woda, drogi, drzewa) |
 | `dem.py` | siatka wysokości terenu z kafli Terrain Tiles (AWS Open Data) |
+| `rail.py` | pociągi z ogólnopolskiego GTFS kolei, przycięte do obszaru mapy i dopisane do GTFS autobusów |
+| `bts.py` | stacje bazowe telefonii z arkuszy UKE (xlsx czytane biblioteką standardową) |
 | `diff.py` | porównanie dwóch wersji rozkładu → `dist/changes.json` |
 | `build.py` | skleja moduły z `src/`, wkleja dane (gzip + base64), kopiuje manifest, service worker i ikony |
 | `src/index.html` | szablon strony; dołącza `src/style.css` i moduły `src/js/*.js` (renderer, UI, planer, pogoda…) |
@@ -201,9 +203,25 @@ Bez danych OSM (np. `"map": {"enabled": false}`) strona wraca do zabudowy poglą
 - **📰 Zmiany w rozkładzie:** po nowej wersji paczki pipeline porównuje ją z poprzednią (`diff.py`: liczba kursów w typach dni,
   takt w szczycie, pierwszy i ostatni kurs, przystanki linii). Strona pokazuje wynik, dopóki go nie obejrzysz.
 
+## Tryby: autobusy, pociągi, samoloty, infrastruktura
+Przyciski 🚌 🚆 ✈ 🗼 w panelu w lewym górnym rogu włączają i wyłączają każdy tryb osobno. Wybór jest zapamiętany
+i trafia do udostępnianego linku (`m=bra…`).
+- **🚆 Pociągi** (`rail.py`): rozkład wszystkich pociągów w Polsce ([mkuran.pl/gtfs](https://mkuran.pl/gtfs/), dane PKP PLK)
+  przycięty do obszaru mapy: kursy IC i PolRegio między 33 stacjami (Rzeszów Główny, Zachodni, Staroniwa, Jasionka Lotnisko…).
+  Pociągi są dopisywane do GTFS autobusów, więc tablice odjazdów stacji, rozkład i planer połączeń (autobus + pociąg)
+  działają tak samo. Na mapie składy wagonów jadą po torach, stacje mają peron z wiatą.
+- **✈ Samoloty**: pozycje ADS-B z [adsb.lol](https://adsb.lol/) (ODbL) w promieniu ok. 75 km, przez `proxy.mjs`
+  (`/aircraft.json`, co 8 s, tylko gdy strona pyta). Wysokość lotu jest ściśnięta, cień pokazuje miejsce nad ziemią.
+  Kliknięcie: lot, typ, rejestracja, wysokość, prędkość. Lotnisko Jasionka (pas, drogi kołowania, płyta) jest z OSM.
+  Bez proxy (np. GitHub Pages) samolotów nie ma.
+- **🗼 Infrastruktura**: linie energetyczne ze słupami i stacje transformatorowe, maszty i wieże (OSM), stacje bazowe telefonii
+  z [wykazu pozwoleń radiowych UKE](https://bip.uke.gov.pl/pozwolenia-radiowe/) (operatorzy, systemy 2G–5G i pasma, `bts.py`),
+  stacje paliw z marką i LPG/CNG oraz ładowarki EV ze złączami i mocą (OSM). Cen paliw nie ma w otwartych danych.
+
 ## Mapa: pogoda, pory roku, teren, częstotliwość
 - **Pogoda** z [Open-Meteo](https://open-meteo.com/) (bez klucza): w panelu w lewym górnym rogu temperatura, opis, odczuwalna,
-  wiatr i pokrywa śnieżna. Na mapie deszcz, śnieg i mgła, mokry asfalt, zachmurzenie przyciemnia słońce.
+  wiatr, pokrywa śnieżna i jakość powietrza (indeks EAQI i PM2,5 z modelu CAMS). Na mapie deszcz, śnieg i mgła,
+  mokry asfalt, zachmurzenie przyciemnia słońce, a przy złym powietrzu miasto spowija smog.
   Wschód i zachód słońca są z prognozy. Efekty działają, gdy symulacja jest blisko teraz (±3 h).
 - **Pory roku** z daty symulacji: liście przebarwiają się od połowy września, zimą trawa jest sucha, a śnieg leży według
   grubości pokrywy z prognozy. W ustawieniach można wymusić porę roku albo wyłączyć pogodę.
@@ -273,7 +291,10 @@ Czcionka Pixelify Sans (SIL OFL) ładuje się z Google Fonts, earcut jest na lic
 Mapa i adresy: © współtwórcy OpenStreetMap, licencja ODbL — https://www.openstreetmap.org/copyright.
 Zbudowana strona zawiera bazę danych pochodną od OSM; jej udostępnianie podlega ODbL (podanie źródła, ta sama licencja dla bazy).
 
-Pogoda: [Open-Meteo.com](https://open-meteo.com/), CC BY 4.0.
+Pogoda i jakość powietrza: [Open-Meteo.com](https://open-meteo.com/), CC BY 4.0 (jakość powietrza: model CAMS, Copernicus).
+Pociągi: PKP Polskie Linie Kolejowe S.A. ([otwarte dane](https://www.plk-sa.pl/klienci-i-kontrahenci/api-otwarte-dane)),
+GTFS w opracowaniu [mkuran.pl](https://mkuran.pl/gtfs/). Samoloty: [adsb.lol](https://adsb.lol/), ODbL.
+Stacje bazowe: Urząd Komunikacji Elektronicznej, wykaz pozwoleń radiowych.
 Wysokości terenu: [Terrain Tiles](https://github.com/tilezen/joerd/blob/master/docs/attribution.md) (Mapzen, AWS Open Data).
 W Polsce źródłem jest głównie EU-DEM („Produced using Copernicus data and information funded by the European Union — EU-DEM layers”)
 oraz SRTM (NASA).

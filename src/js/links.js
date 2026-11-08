@@ -6,6 +6,7 @@
 //   l     linia (numer), t: kurs (trip_id)
 //   from, to   miejsca planera: s:<przystanek> | p:<lat>,<lon>,<opis> | u:<ulica>;  at: godzina wyszukiwania
 //   time  godzina symulacji (HH:MM), speed: tempo
+//   m     tryby widoczne na mapie: b autobusy, r pociągi, a samoloty, i infrastruktura ("-" = nic)
 const toLatLon = (x, y) => [D.origin[0] + y / D.ky, D.origin[1] + x / D.kx];
 const fromLatLon = (lat, lon) => [(lon - D.origin[1]) * D.kx, (lat - D.origin[0]) * D.ky];
 
@@ -19,7 +20,7 @@ function encodePlace(p) {
 function decodePlace(s) {
   if (!s) return null;
   const kind = s.slice(0, 2), v = s.slice(2);
-  if (kind === 's:') { const g = groupByName(v); return g ? { kind: 'stop', g: g.id, label: g.name, icon: '🚏' } : null; }
+  if (kind === 's:') { const g = groupByName(v); return g ? { kind: 'stop', g: g.id, label: g.name, icon: stopIcon(g) } : null; }
   if (kind === 'p:') {
     const [la, lo, ...rest] = v.split(','); const lat = parseFloat(la), lon = parseFloat(lo);
     if (!isFinite(lat) || !isFinite(lon)) return null;
@@ -45,6 +46,7 @@ function encodeLink(st) {
   if (f && t) { q.set('from', f); q.set('to', t); if (st.at != null) q.set('at', fmtT(st.at)); }
   if (st.time != null) q.set('time', fmtT(st.time));
   if (st.speed != null && st.speed !== 1) q.set('speed', st.speed);
+  if (st.modes && st.modes !== 'bra') q.set('m', st.modes);       // domyślne tryby nie trafiają do linku
   return q.toString().replace(/%2C/g, ',').replace(/%3A/g, ':').replace(/%2F/g, '/');   // czytelniej, a parser i tak to rozumie
 }
 // tekst po # -> stan (indeksy w bieżących danych; -1 / null gdy czegoś nie ma)
@@ -62,5 +64,6 @@ function decodeLink(hash) {
   const hm = s => { const m = /^(\d{1,2}):(\d{2})$/.exec(s || ''); return m && +m[1] < 30 && +m[2] < 60 ? +m[1] * 3600 + +m[2] * 60 : null; };
   out.at = hm(q.get('at')); out.time = hm(q.get('time'));
   if (q.has('speed')) out.speed = +q.get('speed');
+  if (/^([brai]{1,4}|-)$/.test(q.get('m') || '')) out.modes = q.get('m');
   return out;
 }

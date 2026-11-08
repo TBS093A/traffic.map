@@ -166,6 +166,20 @@ void main(){
     if(abs(vLN.x)>.5) col=vec3(.88,.82,.7);
     else { col*=.86+.14*step(.5,fract(vLoc.y*1.7)); col*=.94+.06*step(.5,fract((vLoc.x+vSeed)/1.1)); }
   }
+  else if(k==14||k==15){           // wagon: białe pudło, pas w kolorze przewoźnika, rząd okien; vSeed 1 = czoło, 2 = koniec składu
+    flag=0.;
+    float v=vLoc.y/vSize.y;
+    col=vec3(.9,.91,.9);
+    if(vLN.y>.5) col=vec3(.52,.54,.58);
+    else if(v<.2) col=vCol*.8;
+    else if(v<.3) col=vCol;
+    else if(v>.42&&v<.78&&abs(vLN.z)>.5){ float f=fract(vLoc.x/2.4); if(f>.18&&f<.82){ col=vec3(.14,.18,.25); emis=vec3(1.,.92,.7)*.45*uNight; } }
+    if(vLN.x>.5&&vSeed>.5&&vSeed<1.5){ col=v>.45?vec3(.12,.15,.2):vCol; emis+=vec3(1.,.95,.75)*uNight*step(v,.3)*1.2; }
+    if(vLN.x<-.5&&vSeed>1.5&&v<.3) emis+=vec3(.9,.1,.1)*uNight;
+    if(k==15) emis+=vec3(.22)*(.6+.4*sin(uTime*6.));
+  }
+  else if(k==16){ flag=0.; if(vLN.y<-.5) col*=.75; emis=col*.12*uNight; }   // samolot
+  else if(k==17){ oC=vec4(vec3(.05,.06,.08),.5); oN=vec4(.5,1.,.5,1.); return; }   // cień samolotu na ziemi
   else if(k==6){ flag=0.; emis=vec3(.95,.82,.3)*(.6+.4*sin(uTime*5.)); }
   if(k<=3||(k>=7&&k<=13)) col=seasonal(col,n,vWP.xz,k==1?1.:0.);   // zieleń drzew się przebarwia, śnieg tylko na tym, co stoi
   oC=vec4(col*toon(n)+emis, flag>.5?1.:.5);

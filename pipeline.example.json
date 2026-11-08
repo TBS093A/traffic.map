@@ -32,6 +32,14 @@
     "zoom": 11,
     "step_m": 150
   },
+  "rail": {
+    "enabled": true,
+    "url": "https://mkuran.pl/gtfs/polish_trains.zip"
+  },
+  "bts": {
+    "enabled": true,
+    "max_age_days": 30
+  },
   "map": {
     "enabled": true,
     "url": "https://overpass-api.de/api/interpreter",

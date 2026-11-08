@@ -8,7 +8,8 @@
 // Zmienne: FEED_URL (pozycje pojazdów), TRIP_UPDATES_URL (prognozy odjazdów), ALERTS_URL (komunikaty
 // o utrudnieniach) — każda opcjonalna; jeden kanał może zawierać kilka rodzajów danych naraz.
 // PORT (8787), POLL_MS (10000), PAGE (dist/index.html — wynik pipeline.py).
-// Wyjście: /vehicles.json, /trips.json, /alerts.json
+// AIR_URL (samoloty z ADS-B, domyślnie adsb.lol w promieniu 40 mil morskich; pusty = wyłączone), AIR_MS (8000).
+// Wyjście: /vehicles.json, /trips.json, /alerts.json, /aircraft.json
 
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -164,11 +165,45 @@ export function staticPath(url, dist = DIST) {
   const f = path.resolve(dist, '.' + p);
   return f.startsWith(path.resolve(dist) + path.sep) ? f : null;
 }
-export function handler(state = () => latest) {
+// ---------- samoloty (ADS-B z adsb.lol, ODbL) ----------
+// Pobierane na żądanie strony, najwyżej co AIR_MS; bez klientów proxy nie odpytuje serwisu.
+const AIR_URL = process.env.AIR_URL ?? 'https://api.adsb.lol/v2/point/50.0375/22.0049/40';
+const AIR_MS = +(process.env.AIR_MS || 8000);
+const FT = 0.3048, KT = 1.852;
+// odpowiedź readsb/adsb.lol -> lista samolotów w jednostkach SI (wysokość m, prędkość km/h, wznoszenie m/s)
+export function aircraftFrom(j) {
+  return (j && Array.isArray(j.ac) ? j.ac : []).filter(a => Number.isFinite(a.lat) && Number.isFinite(a.lon)).map(a => {
+    const gnd = a.alt_baro === 'ground', alt = gnd ? 0 : Number.isFinite(a.alt_geom) ? a.alt_geom : a.alt_baro;
+    return { hex: a.hex, flight: (a.flight || '').trim(), reg: a.r || '', type: a.t || '', desc: a.desc || '', lat: a.lat, lon: a.lon,
+      alt: Number.isFinite(alt) ? Math.round(alt * FT) : null, gnd, gs: Number.isFinite(a.gs) ? Math.round(a.gs * KT) : null,
+      track: Number.isFinite(a.track) ? a.track : (Number.isFinite(a.true_heading) ? a.true_heading : 0),
+      vr: Number.isFinite(a.baro_rate) ? Math.round(a.baro_rate * FT / 60 * 10) / 10 : 0, sq: a.squawk || '', seen: a.seen ?? 0 };
+  });
+}
+let air = { timestamp: 0, aircraft: [] }, airAt = 0, airBusy = null;
+async function aircraft() {
+  if (!AIR_URL) return { timestamp: 0, aircraft: [], error: 'samoloty wyłączone (AIR_URL)' };
+  if (Date.now() - airAt < AIR_MS) return air;
+  airBusy ??= (async () => {
+    try {
+      const r = await fetch(AIR_URL, { headers: { 'User-Agent': 'rzeszow-w-pikselach-proxy/1.0' }, signal: AbortSignal.timeout(10000) });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      air = { timestamp: Math.floor(Date.now() / 1000), aircraft: aircraftFrom(await r.json()) };
+    } catch (e) { air = { ...air, error: 'samoloty: ' + e.message }; }
+    airAt = Date.now(); airBusy = null; return air;
+  })();
+  return airBusy;
+}
+
+export function handler(state = () => latest, airState = aircraft) {
   return async (req, res) => {
     const cors = { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' };
     if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405, { ...SECURITY_HEADERS, Allow: 'GET, HEAD' }); return res.end(); }
     const url = req.url || '/';
+    if (/^\/aircraft\.json(\?|$)/.test(url)) {
+      res.writeHead(200, { ...SECURITY_HEADERS, ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+      return res.end(JSON.stringify(await airState()));
+    }
     const api = /^\/(vehicles|trips|alerts)\.json(\?|$)/.exec(url);
     if (api) {
       const s = state(), body = { timestamp: s.timestamp, [api[1]]: s[api[1]] || [] };

@@ -82,6 +82,12 @@ def queries(bbox, timeout):
         'land': f'{head}({"".join(ways)});out tags geom;({"".join(rels)});out body geom;',
         'roads': f'{head}(way["highway"~"^({roads})$"]{b};way["railway"="rail"]{b};);out tags geom;',
         'trees': f'{head}node["natural"="tree"]{b};out skel;',
+        # lotnisko, sieć energetyczna, maszty i wieże, stacje paliw, ładowarki EV
+        'infra': (f'{head}(way["aeroway"~"^(runway|taxiway|apron)$"]{b};'
+                  f'way["power"~"^(line|minor_line|cable|substation)$"]{b};'
+                  f'node["man_made"~"^(mast|tower|communications_tower)$"]{b};way["man_made"~"^(mast|tower|communications_tower)$"]{b};'
+                  f'node["amenity"~"^(fuel|charging_station)$"]{b};way["amenity"~"^(fuel|charging_station)$"]{b};'
+                  f');out tags geom;'),
     }
 
 
@@ -337,6 +343,86 @@ def compact_roads(elements):
     return buckets, bridges
 
 
+MAST_TYPES = {'communication', 'broadcasting', 'radio', 'television', 'radar', 'monitoring'}
+
+
+def _centre(e):
+    if 'lat' in e:
+        return proj(e['lat'], e['lon'])
+    pts = to_xy(e.get('geometry') or [])
+    if not pts:
+        return None
+    return (sum(p[0] for p in pts) / len(pts), sum(p[1] for p in pts) / len(pts))
+
+
+def _kv(tags):
+    v = number(str(tags.get('voltage', '')).split(';')[0])
+    return round(v / 1000) if v else 0
+
+
+def compact_infra(elements):
+    """Lotnisko, sieć energetyczna, maszty, stacje paliw i ładowarki.
+
+    air: {'rw': [[szerokość_m, linia]], 'tw': [linia], 'ap': [pierścień]}   (pas startowy, drogi kołowania, płyta)
+    pw:  {'l': [[kV, 0 = linia wysokiego napięcia / 1 = niskiego, linia]], 'ss': [pierścień]}   (wierzchołki linii to słupy)
+    m:   [[x, y, wysokość_m, rodzaj 0 = maszt telekom. / 1 = nadawczy / 2 = wieża kontroli lotów, nazwa]]
+    f:   [[x, y, 0 = stacja paliw / 1 = ładowarka, nazwa, szczegóły]]
+    Linie i pierścienie jak w reszcie mapy (enc_ring), punkty w metrach."""
+    air = {'rw': [], 'tw': [], 'ap': []}
+    pw = {'l': [], 'ss': []}
+    masts, fuel = [], []
+    for e in elements:
+        tags = e.get('tags') or {}
+        aw, pwr, mm, am = tags.get('aeroway'), tags.get('power'), tags.get('man_made'), tags.get('amenity')
+        if aw in ('runway', 'taxiway') and e.get('geometry'):
+            pts = dp(to_xy(e['geometry']), 2)
+            if aw == 'runway':
+                air['rw'].append([round(number(tags.get('width')) or 45), enc_ring(pts)])
+            else:
+                air['tw'].append(enc_ring(pts))
+        elif aw == 'apron':
+            air['ap'] += [enc_ring(o) for o, _ in polygons(e, 2)]
+        elif pwr in ('line', 'minor_line') and e.get('geometry'):
+            pts = to_xy(e['geometry'])                    # bez upraszczania: każdy wierzchołek to słup
+            if len(pts) >= 2:
+                pw['l'].append([_kv(tags), 0 if pwr == 'line' else 1, enc_ring(pts)])
+        elif pwr == 'substation':
+            pw['ss'] += [enc_ring(o) for o, _ in polygons(e, 1.5)]
+        elif mm in ('mast', 'tower', 'communications_tower'):
+            tt = (tags.get('tower:type') or '').lower()
+            kind = 2 if 'kontroli' in tt or tags.get('service') == 'aircraft_control' or 'control' in tt \
+                else 1 if tt in ('broadcasting', 'radio', 'television') or mm == 'communications_tower' \
+                else 0 if tt in MAST_TYPES or (mm == 'mast' and not tt) else None
+            c = _centre(e)
+            if kind is None or not c:
+                continue
+            h = number(tags.get('height')) or (60 if kind == 1 else 30 if kind == 2 else 40)
+            masts.append([round(c[0], 1), round(c[1], 1), round(min(h, 400)), kind, tags.get('name') or tags.get('operator') or ''])
+        elif am in ('fuel', 'charging_station'):
+            c = _centre(e)
+            if not c:
+                continue
+            name = tags.get('brand') or tags.get('name') or tags.get('operator') or ''
+            if am == 'fuel':
+                fx = [lbl for k, lbl in (('fuel:lpg', 'LPG'), ('fuel:cng', 'CNG'), ('fuel:adblue', 'AdBlue'), ('fuel:e85', 'E85'))
+                      if tags.get(k) == 'yes']
+                info = ' · '.join(fx + (['24h'] if tags.get('opening_hours') == '24/7' else []))
+                fuel.append([round(c[0], 1), round(c[1], 1), 0, name, info])
+            else:
+                sockets = [k.split(':')[1].replace('_', ' ') for k, v in tags.items()
+                           if k.startswith('socket:') and k.count(':') == 1 and v not in ('no', '0')]
+                parts = []
+                if tags.get('capacity'):
+                    parts.append(f'stanowiska: {tags["capacity"]}')
+                if sockets:
+                    parts.append(', '.join(sorted(sockets)))
+                pmax = max((number(v) or 0 for k, v in tags.items() if k.startswith('socket:') and k.endswith(':output')), default=0)
+                if pmax:
+                    parts.append(f'do {pmax:g} kW')
+                fuel.append([round(c[0], 1), round(c[1], 1), 1, name, ' · '.join(parts)])
+    return {'air': air, 'pw': pw, 'm': masts, 'f': fuel}
+
+
 def compact(cache):
     """Czyta warstwy z katalogu cache. Zwraca (słownik map, statystyki) albo (None, {}), gdy nie ma budynków."""
     elements = load_layer(cache, 'buildings')
@@ -349,6 +435,9 @@ def compact(cache):
     roads, bridges = compact_roads(load_layer(cache, 'roads'))
     trees = enc_ring(sorted((proj(e['lat'], e['lon']) for e in load_layer(cache, 'trees') if 'lat' in e)))
     data = {'classes': LAND_CLASSES, 'b': b, 'p': polys, 'l': land, 'r': roads, 'rb': bridges, 'w': [rivers, streams], 't': trees}
+    infra = load_layer(cache, 'infra')
+    if infra:
+        data['infra'] = compact_infra(infra)
     stats = {'buildings': n_buildings, 'buildings_mesh': len(polys), 'buildings_real_height': n_real,
              'land_polygons': len(land), 'road_lines': sum(len(x) for x in roads), 'bridges': len(bridges),
              'water_lines': len(rivers) + len(streams), 'trees_osm': len(trees) // 2}

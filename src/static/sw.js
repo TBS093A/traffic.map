@@ -5,7 +5,7 @@
 const VERSION = '__VERSION__';
 const CACHE = 'rwp-' + VERSION;
 const CORE = ['./', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
-const NEVER = /\/vehicles\.json|\/alerts\.json|\/trips\.json|api\.open-meteo\.com/;
+const NEVER = /\/vehicles\.json|\/alerts\.json|\/trips\.json|\/aircraft\.json|open-meteo\.com/;
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));
