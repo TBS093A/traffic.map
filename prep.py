@@ -370,7 +370,7 @@ def prepare(src, out, addresses=None, map_cache=None, dem_path=None):
         import dem
         data['dem'] = dem.compact(dem.load(dem_path), proj, (LAT0, LON0))
         map_stats['dem_points'] = len(data['dem']['h'])
-        data['feed']['dem_source'] = 'Copernicus DEM GLO-90 (Open-Meteo)'
+        data['feed']['dem_source'] = dem.SOURCE
     with open(out, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
     return {**map_stats, 'routes': len(out_routes), 'stops': len(out_stops), 'shapes': len(out_shapes),
