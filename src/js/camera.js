@@ -22,10 +22,14 @@ function screenToGround(px, py) { // piksele CSS -> punkt na ziemi (x, z świata
   const { eye, F, Rv, U, half, halfW } = camB;
   const sx = (px / innerWidth) * 2 - 1, sy = 1 - (py / innerHeight) * 2;
   const o = [eye[0] + Rv[0] * sx * halfW + U[0] * sy * half, eye[1] + Rv[1] * sx * halfW + U[1] * sy * half, eye[2] + Rv[2] * sx * halfW + U[2] * sy * half];
-  const t = o[1] / F[1];
-  return [o[0] - F[0] * t, o[2] - F[2] * t];
+  let t = o[1] / F[1], x = o[0] - F[0] * t, z = o[2] - F[2] * t;
+  for (let i = 0; i < 4 && terrK(); i++) {        // z rzeźbą terenu: przecięcie promienia z powierzchnią, kilka przybliżeń
+    t = (o[1] - demH(x, -z)) / F[1]; x = o[0] - F[0] * t; z = o[2] - F[2] * t;
+  }
+  return [x, z];
 }
-function worldToScreen(x, y, z) {
+function worldToScreen(x, y, z) {               // y nad terenem
+  y += demH(x, -z);
   const m = VP, cx = m[0] * x + m[4] * y + m[8] * z + m[12], cy = m[1] * x + m[5] * y + m[9] * z + m[13];
   return [(cx + 1) / 2 * innerWidth, (1 - cy) / 2 * innerHeight];
 }

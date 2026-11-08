@@ -1,6 +1,25 @@
+// rzeźba terenu: wysokość z tekstury (siatka DEM w metrach), interpolacja dwuliniowa; xz to współrzędne świata (z = -północ)
+const DEM_GLSL = `
+uniform sampler2D uDem; uniform vec4 uDemBox; uniform vec2 uDemN; uniform float uDemK;
+float demTex(ivec2 p){ return texelFetch(uDem, clamp(p, ivec2(0), ivec2(uDemN)-1), 0).r; }
+float demAt(vec2 xz){
+  if(uDemK==0.) return 0.;
+  vec2 g=clamp((vec2(xz.x,-xz.y)-uDemBox.xy)/uDemBox.zw, vec2(0.), uDemN-1.001), i=floor(g), f=g-i; ivec2 p=ivec2(i);
+  return mix(mix(demTex(p),demTex(p+ivec2(1,0)),f.x), mix(demTex(p+ivec2(0,1)),demTex(p+ivec2(1,1)),f.x), f.y)*uDemK;
+}
+float demLift(){ return uDemK>0. ? .6 : 0.; }   // drogi i nakładki minimalnie nad siatką gruntu (inna gęstość wierzchołków)
+vec3 demNormal(vec2 xz){
+  if(uDemK==0.) return vec3(0,1,0);
+  float e=max(uDemBox.z,uDemBox.w)*.5;
+  return normalize(vec3(demAt(xz-vec2(e,0.))-demAt(xz+vec2(e,0.)), 2.*e, demAt(xz-vec2(0.,e))-demAt(xz+vec2(0.,e))));
+}
+`;
 const COMMON = `#version 300 es
 precision highp float;
 uniform mat4 uVP; uniform vec3 uSun; uniform vec3 uSunCol; uniform vec3 uAmb; uniform float uNight; uniform float uTime;
+${DEM_GLSL}
+// cieniowanie stoków: ciągłe, delikatne, żeby wzgórza czytały się mimo trzech poziomów światła w toon()
+vec3 hill(vec3 n){ return vec3(1.+clamp((dot(n,uSun)-dot(vec3(0,1,0),uSun))*1.6,-.35,.35)); }
 float h21(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+45.32); return fract(p.x*p.y); }
 float vnoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f);
   return mix(mix(h21(i),h21(i+vec2(1,0)),f.x), mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),f.x), f.y); }
@@ -25,18 +44,18 @@ vec3 seasonal(vec3 c, vec3 n, vec2 w, float foliage){
 // --- grunt
 const groundP = prog(COMMON + `
 layout(location=0) in vec2 aP; out vec2 vW;
-void main(){ vW=aP; gl_Position=uVP*vec4(aP.x,0.,aP.y,1.); }`,
+void main(){ vW=aP; gl_Position=uVP*vec4(aP.x,demAt(aP),aP.y,1.); }`,
 COMMON + `
 in vec2 vW; uniform sampler2D uDist; uniform float uExt; uniform float uTexel; uniform int uReal; layout(location=0) out vec4 oC; layout(location=1) out vec4 oN;
 void main(){
-  vec2 p=vec2(vW.x,-vW.y);
+  vec2 p=vec2(vW.x,-vW.y); vec3 up=demNormal(vW);
   vec2 uv=(p+uExt)/(2.*uExt);
   float dd = (uv.x<0.||uv.y<0.||uv.x>1.||uv.y>1.) ? 255. : texture(uDist,uv).r*255.;
   float dm = dd*8.;
   float r=length(p);
   float n=vnoise(p/90.)*.6+vnoise(p/23.)*.4;
   vec3 col = n<.42?vec3(.27,.43,.23):(n<.62?vec3(.33,.5,.26):vec3(.4,.56,.29));
-  if(uReal==1){ oC=vec4(seasonal(col,vec3(0,1,0),p,.5)*toon(vec3(0,1,0)),1.); oN=vec4(.5,1.,.5,1.); return; }
+  if(uReal==1){ oC=vec4(seasonal(col,vec3(0,1,0),p,.5)*toon(up)*hill(up),1.); oN=vec4(up*.5+.5,1.); return; }
   // pola uprawne poza miastem
   if(dd>200. && r>2600.){
     vec2 cell=floor(p/vec2(140.,90.)); float h=h21(cell);
@@ -50,13 +69,13 @@ void main(){
   float urban = exp(-r/2300.);
   float paveW = mix(10., 34., urban) + (vnoise(p/60.)-.5)*14.;
   if(dm < paveW || (r<900. && vnoise(p/70.) > .35)) col = mix(vec3(.66,.62,.56), vec3(.6,.57,.52), step(.6,vnoise(p/14.)));
-  oC=vec4(seasonal(col,vec3(0,1,0),p,.5)*toon(vec3(0,1,0)),1.); oN=vec4(.5,1.,.5,1.);
+  oC=vec4(seasonal(col,vec3(0,1,0),p,.5)*toon(up)*hill(up),1.); oN=vec4(up*.5+.5,1.);
 }`);
 
 // --- drogi i podświetlenie trasy
 const roadP = prog(COMMON + `
 layout(location=0) in vec4 aP; layout(location=1) in vec2 aUV; layout(location=2) in float aH; uniform float uY; uniform float uHW; out vec2 vUV;
-void main(){ vUV=aUV; vec2 w=aP.xy+aP.zw*uHW; gl_Position=uVP*vec4(w.x,uY+aH,w.y,1.); }`,
+void main(){ vUV=aUV; vec2 w=aP.xy+aP.zw*uHW; gl_Position=uVP*vec4(w.x,uY+aH+demAt(aP.xy)+demLift(),w.y,1.); }`,
 COMMON + `
 in vec2 vUV; uniform int uMode; uniform vec3 uHL; layout(location=0) out vec4 oC; layout(location=1) out vec4 oN;
 void main(){
@@ -162,7 +181,7 @@ void main(){
   vec3 sn=normalize(aNor/max(iB.xyz,vec3(1e-3)));   // normalna po skalowaniu (połać dachu zależy od proporcji)
   vNor=vec3(sn.x*c+sn.z*s, sn.y, -sn.x*s+sn.z*c);
   vLN=aNor; vCol=iC.rgb; vLoc=l; vSize=iB.xyz; vKind=iB.w; vSeed=iC.w;
-  vWP=iA.xyz+r; gl_Position=uVP*vec4(vWP,1.);
+  vWP=iA.xyz+r; vWP.y+=demAt(iA.xz); gl_Position=uVP*vec4(vWP,1.);   // cała bryła stoi na terenie w punkcie bazowym
 }`,
 SOLID_FS);
 // ściana: vLoc.x to pozycja wzdłuż ściany, więc ten sam shader rysuje okna
@@ -172,12 +191,12 @@ out vec3 vNor; out vec3 vLN; out vec3 vCol; out vec3 vLoc; out vec3 vSize; out v
 void main(){
   vWP=aPos; vNor=aNor; vLN=abs(aNor.y)<.5?vec3(0,0,1):vec3(0,1,0); vCol=aCol; vSize=vec3(aWall.y*.1,aWall.z*.1,0.);
   vLoc=vec3(aWall.x*.1-vSize.x*.5,aPos.y,0.); vKind=aKS.x; vSeed=aKS.y;
-  gl_Position=uVP*vec4(aPos,1.);
+  vWP.y+=demAt(aPos.xz); gl_Position=uVP*vec4(vWP,1.);
 }`, SOLID_FS);
 // teren z OSM: płaskie wielokąty, kolor wg klasy
 const landP = prog(COMMON + `
 layout(location=0) in vec2 aP; layout(location=1) in vec2 aC; out vec2 vW; flat out int vC; flat out float vS;
-void main(){ vW=vec2(aP.x,-aP.y); vC=int(aC.x+.5); vS=aC.y; gl_Position=uVP*vec4(aP.x,0.,aP.y,1.); }`,
+void main(){ vW=vec2(aP.x,-aP.y); vC=int(aC.x+.5); vS=aC.y; gl_Position=uVP*vec4(aP.x,demAt(aP),aP.y,1.); }`,
 COMMON + `
 in vec2 vW; flat in int vC; flat in float vS; uniform float uTexel; layout(location=0) out vec4 oC; layout(location=1) out vec4 oN;
 void main(){
@@ -204,7 +223,8 @@ void main(){
   else if(vC==15) c=vec3(.4,.39,.4);
   else { float w=step(.8,vnoise(vec2(p.x/26.+uTime*.25,p.y/7.))); c=mix(vec3(.17,.34,.54),vec3(.27,.45,.66),w); }
   if(vC<16) c=seasonal(c,vec3(0,1,0),p,vC==13?0.:.5);   // trawa; murawa boiska zostaje zielona
-  oC=vec4(c*toon(vec3(0,1,0)),1.); oN=vec4(.5,1.,.5,1.);
+  vec3 up=demNormal(vec2(vW.x,-vW.y));
+  oC=vec4(c*toon(up)*hill(up),1.); oN=vec4(up*.5+.5,1.);
 }`);
 // --- post-processing: kontury, paleta, dithering, skalowanie bez wygładzania
 const postP = prog(`#version 300 es

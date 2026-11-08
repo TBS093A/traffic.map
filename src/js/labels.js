@@ -46,9 +46,11 @@ async function buildAtlas() {
 }
 
 const labelP = prog(`#version 300 es
+precision highp float;
 layout(location=0) in vec3 aP; layout(location=1) in vec2 aUV; layout(location=2) in vec4 aT;
 uniform mat4 uVP; out vec2 vUV; out vec4 vT;
-void main(){ vUV=aUV; vT=aT; gl_Position=uVP*vec4(aP,1.); }`,
+${DEM_GLSL}
+void main(){ vUV=aUV; vT=aT; gl_Position=uVP*vec4(aP.x,aP.y+demAt(aP.xz),aP.z,1.); }`,
 `#version 300 es
 precision highp float;
 uniform sampler2D uAtlas; uniform sampler2D uD; uniform int uPs; uniform ivec2 uLow; uniform float uBias;
@@ -202,7 +204,7 @@ function drawLabels() {
   if (key !== LBL.key) { LBL.key = key; if (opt.lbl) rebuildLabels(); else LBL.count = 0; }
   if (!LBL.count) return;
   gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.disable(gl.DEPTH_TEST);
-  gl.useProgram(labelP.p); gl.uniformMatrix4fv(labelP.u.uVP, false, VP);
+  gl.useProgram(labelP.p); gl.uniformMatrix4fv(labelP.u.uVP, false, VP); setDem(labelP);
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, LBL.tex); gl.uniform1i(labelP.u.uAtlas, 0);
   gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, R.texs[2]); gl.uniform1i(labelP.u.uD, 1);
   gl.uniform1i(labelP.u.uPs, R.ps); gl.uniform2i(labelP.u.uLow, R.low[0], R.low[1]);

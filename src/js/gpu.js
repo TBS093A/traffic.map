@@ -82,7 +82,8 @@ function bridgeAt(x, y, dx, dy) {
   return Math.abs(c[1] * dx + c[2] * dy) > .85 ? c[0] : 0;
 }
 function onBridges(line) {
-  if (!bridgeGrid.size || line.cum.length < 2) return line;
+  if (line.cum.length < 2) return line;
+  if (!bridgeGrid.size) return terrainLine(line);
   return densify(line, 4, (x, y, dx, dy) => bridgeAt(x, y, dx, dy));
 }
 

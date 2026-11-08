@@ -142,7 +142,13 @@ function buildWorld() {
   for (const [cls, ...rs] of M.l) {
     const rings = rs.map(undelta), flat = new Float64Array(rings.reduce((a, r) => a + r.length, 0)), holes = []; let o = 0;
     rings.forEach((r, i) => { if (i) holes.push(o / 2); flat.set(r, o); o += r.length; });
-    const tris = earcut(flat, holes, 2); nT += tris.length; land.push({ cls, flat, tris, seed: Math.abs(Math.round(flat[0] + flat[1])) % 997 });
+    let tris = earcut(flat, holes, 2), pts = flat;
+    if (TERR.on) {                                  // duże pola dzielone na mniejsze trójkąty, żeby szły za rzeźbą terenu
+      const sub = [], max = Math.max(TERR.dx, TERR.dy) * 1.3;
+      for (let i = 0; i < tris.length; i += 3) subdivideTris(sub, flat[2 * tris[i]], flat[2 * tris[i] + 1], flat[2 * tris[i + 1]], flat[2 * tris[i + 1] + 1], flat[2 * tris[i + 2]], flat[2 * tris[i + 2] + 1], max);
+      pts = Float64Array.from(sub); tris = Array.from({ length: sub.length / 2 }, (_, i) => i);
+    }
+    nT += tris.length; land.push({ cls, flat: pts, tris, seed: Math.abs(Math.round(flat[0] + flat[1])) % 997 });
     if (cls === forest) forestArea += ringArea(rings[0]);
   }
   const landData = new Float32Array(nT * 4), treeRows = [], perM2 = Math.min(1 / 600, 150000 / Math.max(forestArea, 1));
@@ -168,7 +174,7 @@ function buildWorld() {
   }
 
   const lineVao = (lines, hw, px, maxHalf, mode) => {
-    const g = stripLines(lines.map(l => l.h ? l : lineOf(l))), { vao } = vaoFrom(g, STRIP);
+    const g = stripLines(lines.map(l => l.h ? l : terrainLine(lineOf(l)))), { vao } = vaoFrom(g, STRIP);
     return { vao, count: g.length / 7, hw, px, maxHalf, mode };
   };
   const landVao = vaoFrom(landData, [[0, 2, 4, 0], [1, 2, 4, 2]]);

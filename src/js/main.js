@@ -16,10 +16,11 @@ async function main() {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   R.cubeBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, R.cubeBuf); gl.bufferData(gl.ARRAY_BUFFER, cubeGeo(), gl.STATIC_DRAW);
   R.prismBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, R.prismBuf); gl.bufferData(gl.ARRAY_BUFFER, prismGeo(), gl.STATIC_DRAW);
+  setupTerrain();
   if (D.map) buildWorld(); else staticBox = boxVAO(city.data, false);
   dynBox = boxVAO(dyn, true);
   setProgress(.92, 'Rysowanie podpisów…'); await buildAtlas();
-  const E = 40000; groundV = vaoFrom(new Float32Array([-E, -E, E, -E, E, E, -E, -E, E, E, -E, E]), [[0, 2, 2, 0]]);
+  groundV = groundVAO();
   if (!WORLD) { const rg = stripGeo(S.shapes.map((_, i) => i)); roadV = vaoFrom(rg, STRIP); roadCount = rg.length / 7; }
 
   // UI: linie, info
