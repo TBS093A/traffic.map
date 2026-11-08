@@ -1,6 +1,7 @@
 # Release z grupy zmergowanych PR-ów: grupą jest milestone.
 # Przypisz PR-y do milestone'a nazwanego jak wersja (np. v1.2.0) i zamknij go: powstaje tag, wydanie
-# z notatkami pogrupowanymi według etykiet i gotowa strona (index.html z aktualnymi danymi) jako załącznik.
+# z notatkami pogrupowanymi według etykiet i gotowa strona (index.html z aktualnymi danymi) jako załącznik,
+# a ta sama strona idzie na GitHub Pages.
 # Ręcznie: Actions → release → Run workflow, z nazwą milestone'a.
 name: release
 
@@ -89,3 +90,25 @@ jobs:
           gh release create "$VERSION" --target "$TARGET" --title "Rzeszów w pikselach $VERSION" \
             --notes-file notes.md "${draft[@]}" \
             dist/index.html dist/build-info.json "rzeszow-w-pikselach-$VERSION.zip"
+      # ta sama strona trafia na GitHub Pages (job pages poniżej); szkic wydania niczego nie publikuje
+      - name: Strona dla GitHub Pages
+        if: ${{ !inputs.draft }}
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist/
+
+  # Wymaga raz: Settings → Pages → Source: "GitHub Actions".
+  # Na Pages nie ma proxy.mjs, więc strona działa na rozkładzie (bez pojazdów na żywo); pogoda działa.
+  pages:
+    needs: release
+    if: ${{ !inputs.draft }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v5
