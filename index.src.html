@@ -1161,7 +1161,7 @@ function updateBadges() {
     if (el._t !== txt) { el.textContent = txt; el._t = txt; }
     const bgc = (selRoute >= 0 && !inRoute && !isSel) ? '#8c8c96' : rgbCss(c);
     if (el._c !== bgc) { el.style.background = bgc; el._c = bgc; }
-    el.classList.toggle('sel', isSel); el.classList.toggle('far', far && !isSel && !inRoute);
+    el._ti = b.ti; el.classList.toggle('sel', isSel); el.classList.toggle('far', far && !isSel && !inRoute);
     el.style.left = sx + 'px'; el.style.top = sy + 'px'; el.style.display = '';
     n++;
   }
@@ -1296,11 +1296,17 @@ $('#sheet').addEventListener('click', e => {
   if (a.dataset.trip !== undefined) { const ti = +a.dataset.trip; select({ trip: ti }); const b = buses.find(b => b.ti === ti); if (b) { follow = true; } else fitShapes([S.trips[ti].shape]); }
 });
 
-function pick(px, py) {
+function pick(px, py, touch = false) {
   if (pickMode) { finishPick(px, py); return; }
-  // wygrywa najbliższy cel: autobus (środek pudła) albo przystanek (kropka na dachu wiaty lub sama wiata)
-  let bestB = 30, bt = -1, bestS = 34, bs = -1;
+  // wygrywa najbliższy cel: autobus, przystanek (kropka na dachu, wiata albo podpis);
+  // palec trafia 10–20 px obok miejsca, w które celuje, więc dla dotyku strefy są większe
+  let bestB = touch ? 40 : 30, bt = -1, bestS = touch ? 44 : 34, bs = -1;
   for (const b of buses) { if (b.ti < 0) continue; const [sx, sy] = worldToScreen(b.x, (b.h || 0) + busScale() * 1.5, -b.y); const d = Math.hypot(sx - px, sy - py); if (d < bestB) { bestB = d; bt = b.ti; } }
+  for (const el of badgePool) {                // numer linii nad autobusem: odległość od jego prostokąta
+    if (el.style.display === 'none' || el._ti === undefined) continue;
+    const r = el.getBoundingClientRect(), d = Math.hypot(Math.max(r.left - px, 0, px - r.right), Math.max(r.top - py, 0, py - r.bottom));
+    if (d < bestB) { bestB = d; bt = el._ti; }
+  }
   {
     const roof = stopRoofY(cam.half);
     D.stops.forEach(([x, y], i) => {
@@ -1308,12 +1314,14 @@ function pick(px, py) {
       const d = Math.min(Math.hypot(sx - px, sy - py), Math.hypot(gx - px, gy - py));
       if (d < bestS) { bestS = d; bs = i; }
     });
+    const tol = touch ? 22 : 6;
+    for (const h of LBL.hits || []) {          // podpis: odległość od prostokąta tekstu (0 w środku)
+      const [sx, sy] = worldToScreen(h.x, h.yH, -h.y);
+      const dx = Math.max(sx + h.s0 - px, 0, px - (sx + h.s0 + h.w)), dy = Math.max(Math.abs(py - sy) - h.h * .6, 0), d = Math.hypot(dx, dy);
+      if (d <= tol && d < bestS) { bestS = d; bs = h.stop; }
+    }
   }
-  for (const h of LBL.hits || []) {            // podpis przystanku: trafienie w prostokąt tekstu
-    const [sx, sy] = worldToScreen(h.x, h.yH, -h.y);
-    if (px >= sx + h.s0 - 4 && px <= sx + h.s0 + h.w + 4 && Math.abs(py - sy) <= h.h * .8) { select({ stop: h.stop, route: -1 }); return; }
-  }
-  if (bs >= 0 && (bt < 0 || bestS <= bestB)) { select({ stop: bs, route: -1 }); return; }
+  if (bs >= 0 && (bt < 0 || bestS < bestB)) { select({ stop: bs, route: -1 }); return; }   // remis: wygrywa autobus, jego numer leży na wierzchu
   if (bt >= 0) { select({ trip: bt }); return; }
   if (selTrip >= 0 || selStop >= 0) select({ route: selRoute });
 }
@@ -1339,7 +1347,7 @@ canvas.addEventListener('pointermove', e => {
   }
   pointers.set(e.pointerId, cur);
 });
-const endPtr = e => { if (!pointers.has(e.pointerId)) return; const p = pointers.get(e.pointerId); pointers.delete(e.pointerId); if (pointers.size === 0 && moved <= tapSlop && e.type === 'pointerup') pick(p.x, p.y); if (pointers.size) moved = 99; saveCam(); };
+const endPtr = e => { if (!pointers.has(e.pointerId)) return; const p = pointers.get(e.pointerId); pointers.delete(e.pointerId); if (pointers.size === 0 && moved <= tapSlop && e.type === 'pointerup') pick(p.x, p.y, e.pointerType !== 'mouse'); if (pointers.size) moved = 99; saveCam(); };
 canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointercancel', endPtr);
 canvas.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.clientX, e.clientY, Math.exp(e.deltaY * .0015)); hideHint(); saveCam(); }, { passive: false });
 let saveT = 0; function saveCam() { clearTimeout(saveT); saveT = setTimeout(() => { store.set('cam', [cam.x, cam.z, cam.yawT]); store.set('half', cam.half); }, 400); }
