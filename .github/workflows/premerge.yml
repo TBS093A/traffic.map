@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python: ["3.9", "3.12"]
+        python: ["3.10", "3.13"]          # najstarsza dostępna na ubuntu-latest i aktualna
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -59,7 +59,7 @@ jobs:
 
   e2e:
     name: Test w przeglądarce (sieć testowa)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04          # Playwright nie ma jeszcze Chromium dla ubuntu-latest (26.04)
     needs: test
     steps:
       - uses: actions/checkout@v7
@@ -74,11 +74,15 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e
 
+  # CodeQL, dependency review i OSV wysyłają wyniki do code scanningu: na repozytorium prywatnym bez
+  # GitHub Advanced Security go nie ma, więc tam te zadania są pomijane (działają po zmianie na publiczne)
   codeql:
     name: SAST (CodeQL)
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read
       security-events: write
     strategy:
       fail-fast: false
@@ -99,12 +103,13 @@ jobs:
     runs-on: ubuntu-latest
     container: semgrep/semgrep:1.184.0
     steps:
+      # na repozytorium prywatnym to jedyny SAST (CodeQL wymaga code scanningu)
       - uses: actions/checkout@v7
       - run: semgrep scan --config p/default --config p/javascript --config p/python --config p/github-actions --severity ERROR --error --metrics=off --exclude src/vendor
 
   dependency-review:
     name: SCA (nowe zależności w PR)
-    if: github.event_name == 'pull_request'
+    if: ${{ github.event_name == 'pull_request' && !github.event.repository.private }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -119,6 +124,7 @@ jobs:
 
   osv:
     name: SCA (OSV-Scanner)
+    if: ${{ !github.event.repository.private }}
     permissions:
       contents: read
       security-events: write
@@ -132,6 +138,9 @@ jobs:
   secrets:
     name: Sekrety (gitleaks)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read          # akcja czyta listę commitów PR-a
     steps:
       - uses: actions/checkout@v7
         with:
