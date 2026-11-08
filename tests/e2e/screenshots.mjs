@@ -35,11 +35,13 @@ mkdirSync(outDir, { recursive: true });
 try {
   for (const s of SCENES) {
     if (only && !only.includes(s.name)) continue;
-    const { page: p, ctx, errors } = await open(browser, server.url + '#' + s.hash, s.mobile ? { width: 390, height: 844, mobile: true } : {});
+    // WebGL bez GPU (SwiftShader) daje w CI ok. 1 kl./s: automatyczna jakość obniżyłaby rozdzielczość screenów
+    const { page: p, ctx, errors } = await open(browser, server.url + '#' + s.hash, { ...(s.mobile ? { width: 390, height: 844, mobile: true } : {}), store: { auto: 0 } });
     await p.addStyleTag({ content: '#hint{display:none}' });
     if (s.run) await s.run(p);
-    await p.waitForTimeout(2500);                    // podpisy i autobusy na miejscu
-    await p.screenshot({ path: path.join(outDir, s.name + '.png') });
+    // podpisy i autobusy na miejscu: kilka pełnych klatek (czas nic nie mówi, gdy klatka trwa sekundę)
+    await p.evaluate(() => new Promise(r => { let n = 0; const f = () => (++n < 5 ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }));
+    await p.screenshot({ path: path.join(outDir, s.name + '.png'), timeout: 180000 });   // jedna klatka może trwać kilka sekund
     if (errors.length) console.warn(s.name + ': błędy w konsoli:', errors);
     done.push(s.name); console.log('✔', s.name);
     await ctx.close();

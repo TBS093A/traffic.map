@@ -38,8 +38,10 @@ export async function launch() {
 }
 
 // otwiera stronę i czeka, aż zniknie ekran ładowania; zbiera błędy konsoli
-export async function open(browser, url, { width = 1280, height = 800, mobile = false, timezoneId = 'Europe/Warsaw' } = {}) {
+// store: wartości ustawień strony (localStorage, bez prefiksu rwp_) ustawione przed załadowaniem
+export async function open(browser, url, { width = 1280, height = 800, mobile = false, timezoneId = 'Europe/Warsaw', store = null } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: mobile ? 2 : 1, isMobile: mobile, hasTouch: mobile, timezoneId, locale: 'pl-PL' });
+  if (store) await ctx.addInitScript(s => { for (const [k, v] of Object.entries(s)) localStorage.setItem('rwp_' + k, JSON.stringify(v)); }, store);
   const page = await ctx.newPage(), errors = [];
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', e => errors.push(e.message));
