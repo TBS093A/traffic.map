@@ -100,4 +100,11 @@ a{color:var(--acc)}
 .list li.leg.end{cursor:default}
 #attr{z-index:1}
 .list .pl{font-family:var(--px);font-size:11px;color:var(--mut);min-width:26px;text-align:right}
+.tth{margin:14px 0 4px;font-size:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tt{border-collapse:collapse;width:100%;font-family:var(--px);font-size:14px}
+.tt th{width:34px;text-align:right;padding:3px 8px 3px 0;color:var(--acc);font-weight:600;vertical-align:top}
+.tt td{padding:3px 0;border-top:1px solid var(--line);word-spacing:4px}
+.tt tr.now{background:rgba(242,209,107,.12)}
+.tt .past{opacity:.4}
+button:disabled{opacity:.4;cursor:default}
 @media (max-width:600px){#clock{font-size:22px;min-width:100px}#title{font-size:13px}#sheet{max-height:42vh}}

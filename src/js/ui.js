@@ -84,7 +84,7 @@ function stopSheet(si) {
   return `<button class="close" data-act="close">✕</button>
   <h2>🚏 ${esc(grp.name)}</h2><div class="sub">${multi ? grp.members.length + ' słupki · ' : ''}odjazdy w ciągu godziny · ${routes.map(r => chip(r)).join(' ')}</div>
   ${tabs}
-  <div class="btnrow"><button data-act="planfrom">🧭 Stąd</button><button data-act="planto">🧭 Dotąd</button>${shareBtn()}</div>
+  <div class="btnrow"><button data-act="planfrom">🧭 Stąd</button><button data-act="planto">🧭 Dotąd</button><button data-act="timetable">📅 Rozkład</button>${shareBtn()}</div>
   ${fbar}
   <ul class="list">${rows || `<li class="past">${stopFilter === 'act' ? 'Teraz żaden autobus nie jedzie w stronę tego przystanku.' : 'Brak odjazdów w najbliższej godzinie.'}</li>`}</ul>`;
 }
@@ -123,6 +123,7 @@ $('#sheet').addEventListener('click', e => {
   const sd = e.target.closest('[data-side]'); if (sd) { selSide = +sd.dataset.side; lastSheet = 0; renderSheet(); return; }
   const a = e.target.closest('[data-act],[data-stop],[data-trip]'); if (!a) return;
   if (a.dataset.act === 'share') { shareView(); return; }
+  if (a.dataset.act === 'timetable') { openTimetable(); return; }
   if (a.dataset.act === 'close') { select({ route: -1 }); return; }
   if (a.dataset.act === 'planclose') { plan.sel = -1; select({ route: -1 }); return; }
   if (a.dataset.act === 'planopts') { openOv('planOv'); renderPlanResults(); return; }

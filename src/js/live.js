@@ -25,4 +25,16 @@ async function pollLive() {
 function startLive() { clearInterval(live.timer); live.map = new Map(); live.extra = []; if (!live.url) { setLiveStatus('Tryb rozkładowy: autobusy jeżdżą według rozkładu.'); return; } pollLive(); live.timer = setInterval(pollLive, 10000); }
 $('#liveUrl').value = live.url;
 $('#liveGo').onclick = () => { live.url = $('#liveUrl').value.trim(); store.set('liveUrl', live.url); startLive(); };
+// Strona podana przez proxy.mjs ma obok siebie vehicles.json: wtedy tryb na żywo włącza się sam,
+// bez wpisywania adresu w ustawieniach. Adres wpisany ręcznie ma pierwszeństwo.
+async function autoLive() {
+  if (live.url || !/^https?:$/.test(location.protocol)) { startLive(); return; }
+  const url = new URL('vehicles.json', location.href).href;
+  try {
+    const r = await fetch(url, { cache: 'no-store' });
+    const j = r.ok && /json/.test(r.headers.get('content-type') || '') ? await r.json() : null;
+    if (j && Array.isArray(j.vehicles) && (j.vehicles.length || !j.error)) { live.url = url; $('#liveUrl').placeholder = url + ' (wykryto automatycznie)'; }
+  } catch (e) { /* brak proxy: zostaje rozkład */ }
+  startLive();
+}
 
