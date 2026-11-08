@@ -65,9 +65,10 @@ DEFAULTS = {
     },
     "dem": {                       # rzeźba terenu: siatka wysokości nad obszarem "map"
         "enabled": True,
-        "url": "https://api.open-meteo.com/v1/elevation",
-        "step_m": 200,
-        "pause_s": 1.0,            # Open-Meteo: 600 wywołań/min, a 100 punktów to 10 wywołań
+        "url": "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",   # Terrain Tiles (AWS Open Data)
+        "zoom": 11,                # ok. 75 m na piksel; na obszar sieci kilkanaście kafli
+        "step_m": 150,
+        "pause_s": 0.2,
     },
     "map": {                       # budynki, woda, teren, drogi i drzewa z OSM
         "enabled": True,
@@ -360,7 +361,7 @@ def fetch_dem(cfg):
         except (OSError, ValueError, KeyError):
             pass
     try:
-        doc = dem.fetch(bbox, dcfg["step_m"], dcfg["url"], USER_AGENT, dcfg["pause_s"], max(cfg["retries"], 4), cfg["timeout_s"], log)
+        doc = dem.fetch(bbox, dcfg["step_m"], dcfg["url"], USER_AGENT, dcfg["pause_s"], cfg["retries"], cfg["timeout_s"], log, dcfg["zoom"])
         dem.save(doc, path)
         log.info("wysokości terenu: %d × %d punktów, %.0f–%.0f m n.p.m.", doc["nx"], doc["ny"], min(doc["h"]), max(doc["h"]))
     except Exception as e:  # noqa: BLE001
