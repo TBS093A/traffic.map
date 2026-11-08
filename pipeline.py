@@ -399,7 +399,9 @@ def run_hook(cmd, cfg, info):
     env = dict(os.environ, RWP_OUT_DIR=cfg["out_dir"], RWP_INDEX=os.path.join(cfg["out_dir"], "index.html"),
                RWP_SOURCE=info["source"], RWP_FEED_VERSION=str(info.get("version", "")))
     log.info("post_build: %s", cmd)
-    r = subprocess.run(cmd, shell=True, cwd=HERE, env=env, capture_output=True, text=True, timeout=600)
+    # komenda pochodzi z lokalnej konfiguracji operatora (pipeline.json, "post_build"), nie z danych z sieci;
+    # powłoka jest potrzebna, żeby działały przekierowania i && w tej komendzie
+    r = subprocess.run(cmd, shell=True, cwd=HERE, env=env, capture_output=True, text=True, timeout=600)  # nosemgrep: python.lang.security.audit.subprocess-shell-true.subprocess-shell-true
     if r.returncode != 0:
         log.error("post_build zakończył się kodem %s: %s", r.returncode, (r.stderr or r.stdout).strip()[-800:])
         return False
