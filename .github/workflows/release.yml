@@ -55,7 +55,10 @@ jobs:
             --json number,title,labels,author,url > prs.json
           echo "PR-ów: $(python3 -c 'import json; print(len(json.load(open("prs.json"))))')"
       - name: Notatki
-        run: python3 .github/scripts/release_notes.py prs.json "${{ steps.v.outputs.version }}" "${{ steps.v.outputs.prev }}" > notes.md
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          PREV: ${{ steps.v.outputs.prev }}
+        run: python3 .github/scripts/release_notes.py prs.json "$VERSION" "$PREV" > notes.md
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -70,14 +73,19 @@ jobs:
       - name: Strona z aktualnymi danymi
         run: python3 pipeline.py --force -v
       - name: Paczka
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
         run: |
           cd dist
-          zip -9 -r "../rzeszow-w-pikselach-${{ steps.v.outputs.version }}.zip" . -x '.*'
+          zip -9 -r "../rzeszow-w-pikselach-$VERSION.zip" . -x '.*'
+      # wartości z kontekstu przez env, nie wklejane w skrypt (wstrzyknięcie przez nazwę milestone'a)
       - name: Wydanie
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          TARGET: ${{ github.sha }}
+          DRAFT: ${{ inputs.draft && 'true' || 'false' }}
         run: |
-          gh release create "${{ steps.v.outputs.version }}" \
-            --target "${{ github.sha }}" \
-            --title "Rzeszów w pikselach ${{ steps.v.outputs.version }}" \
-            --notes-file notes.md \
-            ${{ inputs.draft && '--draft' || '' }} \
-            dist/index.html dist/build-info.json "rzeszow-w-pikselach-${{ steps.v.outputs.version }}.zip"
+          draft=(); [ "$DRAFT" = true ] && draft=(--draft)
+          gh release create "$VERSION" --target "$TARGET" --title "Rzeszów w pikselach $VERSION" \
+            --notes-file notes.md "${draft[@]}" \
+            dist/index.html dist/build-info.json "rzeszow-w-pikselach-$VERSION.zip"
