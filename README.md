@@ -31,17 +31,24 @@ Screeny pokazują rozkład i dane OSM z 7 listopada 2026.
 ## Pliki
 | Plik | Co robi |
 |---|---|
-| `pipeline.py` | pobiera GTFS, sprawdza zmiany, buduje i podmienia `dist/index.html` |
+| `pipeline.py` | pobiera GTFS, OSM i wysokości terenu, sprawdza zmiany, buduje i podmienia `dist/` |
 | `run.sh` | wrapper dla crona (ustawia katalog roboczy i Pythona) |
 | `pipeline.example.json` | przykładowa konfiguracja — skopiuj do `pipeline.json`, jeśli chcesz coś zmienić |
 | `prep.py` | GTFS → kompaktowy `data.json` (rzutowanie, upraszczanie tras, wzorce kursów) |
 | `osm.py` | warstwy OpenStreetMap → kompaktowa mapa (budynki, teren, woda, drogi, drzewa) |
-| `build.py` | wkleja dane (gzip + base64) do szablonu strony |
-| `index.src.html` | szablon strony: renderer, UI, logika rozkładu (z wbudowanym [earcut](https://github.com/mapbox/earcut), ISC) |
-| `proxy.mjs` | proxy GTFS-Realtime → JSON i serwer strony (Node 18+, bez zależności) |
-| `docs/screenshots/` | screeny używane w tym README |
+| `dem.py` | siatka wysokości terenu z kafli Terrain Tiles (AWS Open Data) |
+| `diff.py` | porównanie dwóch wersji rozkładu → `dist/changes.json` |
+| `build.py` | skleja moduły z `src/`, wkleja dane (gzip + base64), kopiuje manifest, service worker i ikony |
+| `src/index.html` | szablon strony; dołącza `src/style.css` i moduły `src/js/*.js` (renderer, UI, planer, pogoda…) |
+| `src/vendor/earcut.js` | [earcut](https://github.com/mapbox/earcut) (ISC) do triangulacji dachów i terenu |
+| `src/static/` | manifest PWA, service worker, ikony (generuje je `tools/make_icons.py`) |
+| `proxy.mjs` | serwer strony i proxy GTFS-Realtime → JSON (pozycje, prognozy, komunikaty; Node 18+, bez zależności) |
+| `tests/` | testy jednostkowe (Python, Node) na sztucznej sieci, testy e2e w przeglądarce, skrypt screenów |
+| `.github/` | CI: premerge, postmerge, release (opis niżej) |
+| `docs/screenshots/` | screeny używane w tym README (odświeża je CI) |
 
-Wymagania: Python 3.9+ (tylko biblioteka standardowa) i, do pozycji na żywo, Node 18+.
+Wymagania: Python 3.9+ (tylko biblioteka standardowa) i, do serwera i danych na żywo, Node 18+.
+Testy e2e i screeny potrzebują `npm ci` (Playwright, axe-core).
 
 ## Szybki start
 ```sh
@@ -99,13 +106,19 @@ Jeśli żadna paczka nie obejmuje dzisiejszej daty, publikowana jest najlepsza d
 a strona sama przełącza się na rozkład wzorcowy (sobota, niedziela albo dzień roboczy)
 i pokazuje to przy zegarze.
 
-## Pozycje na żywo
+## Dane na żywo
 ```sh
-FEED_URL="<adres Vehicle Positions .pb z kmrzeszow.live/otwartedane>" node proxy.mjs
+FEED_URL="<Vehicle Positions .pb>" TRIP_UPDATES_URL="<Trip Updates .pb>" ALERTS_URL="<Alerts .pb>" node proxy.mjs
 ```
-Otwórz http://localhost:8787/. Proxy serwuje `dist/index.html` i czyta go przy każdym żądaniu,
-więc po przebudowie przez pipeline wystarczy odświeżyć stronę. W ⚙ Ustawienia wpisz
-`http://localhost:8787/vehicles.json`.
+Adresy kanałów są na kmrzeszow.live/otwartedane. Każda zmienna jest opcjonalna, a bez żadnej serwer podaje samą stronę.
+Otwórz http://localhost:8787/. Strona sama wykrywa `vehicles.json` obok siebie i włącza tryb na żywo
+(adres wpisany w ⚙ Ustawienia ma pierwszeństwo). Serwer czyta pliki z `dist/` przy każdym żądaniu,
+więc po przebudowie wystarczy odświeżyć stronę. Wysyła nagłówki bezpieczeństwa (CSP, nosniff, bez ramek).
+
+- **Pozycje** (`/vehicles.json`): autobusy w miejscu z GPS, opóźnienie liczone z pozycji na trasie.
+- **Prognozy** (`/trips.json`): opóźnienie dla każdego przystanku (`+4′` na tablicy), odwołane kursy.
+- **Komunikaty** (`/alerts.json`): objazdy i utrudnienia na tablicy przystanku, przy linii i kursie;
+  licznik „⚠ N komunikatów” w górnym panelu.
 
 ## Silnik w skrócie
 1. Scena renderowana do małej tekstury (rozmiar piksela 1–4) z wyjściami: kolor, normalne, głębia.
@@ -178,18 +191,82 @@ Bez danych OSM (np. `"map": {"enabled": false}`) strona wraca do zabudowy poglą
 - **Moja lokalizacja** wymaga strony otwartej z `localhost` albo przez https. W podglądzie w Claude
   przeglądarka ją blokuje, wtedy działa „Wskaż na mapie”.
 
+## Linki, rozkład, przypomnienia
+- **Linki do widoku:** adres strony nadąża za tym, co widać (kamera, przystanek, linia, kurs, trasa z planera, godzina),
+  np. `#s=Rejtana / Kopisto`, `#l=17`, `#from=s:Lwowska szpital&to=p:50.03,22.01,Dom&at=07:30`. Przystanki i linie są
+  zapisane nazwami, więc link działa też po przebudowie rozkładu. „🔗 Udostępnij” kopiuje link albo otwiera systemowe udostępnianie.
+- **📅 Rozkład** na tablicy przystanku: godziny i minuty odjazdów każdej linii i kierunku, na dziś, dzień roboczy, sobotę albo niedzielę.
+- **⏰ Przypomnij** w planerze: powiadomienie 5, 10 albo 15 min przed wyjściem. Czas wyjścia przesuwa się razem z opóźnieniem
+  pierwszego autobusu. Strona musi być otwarta.
+- **📰 Zmiany w rozkładzie:** po nowej wersji paczki pipeline porównuje ją z poprzednią (`diff.py`: liczba kursów w typach dni,
+  takt w szczycie, pierwszy i ostatni kurs, przystanki linii). Strona pokazuje wynik, dopóki go nie obejrzysz.
+
+## Mapa: pogoda, pory roku, teren, częstotliwość
+- **Pogoda** z [Open-Meteo](https://open-meteo.com/) (bez klucza): w panelu w lewym górnym rogu temperatura, opis, odczuwalna,
+  wiatr i pokrywa śnieżna. Na mapie deszcz, śnieg i mgła, mokry asfalt, zachmurzenie przyciemnia słońce.
+  Wschód i zachód słońca są z prognozy. Efekty działają, gdy symulacja jest blisko teraz (±3 h).
+- **Pory roku** z daty symulacji: liście przebarwiają się od połowy września, zimą trawa jest sucha, a śnieg leży według
+  grubości pokrywy z prognozy. W ustawieniach można wymusić porę roku albo wyłączyć pogodę.
+- **Rzeźba terenu:** siatka wysokości co 150 m z kafli [Terrain Tiles](https://registry.opendata.aws/terrain-tiles/)
+  (AWS Open Data, format Terrarium, kilkanaście kafli PNG na obszar sieci), pobierana raz i trzymana w `work/cache/dem.json.gz`. Wysokość dodają shadery, więc ten sam plik danych działa też płasko
+  (ustawienie „Rzeźba terenu”: wł., ×2, płasko).
+- **Dachy dwuspadowe** na niskich, prostokątnych domach jednorodzinnych.
+- **🔥 Częstotliwość** (lista linii albo `H`): trasy w kolorze liczby odjazdów na godzinę o tej porze.
+- **⏱ Zasięg** na tablicy przystanku: dokąd dojedziesz w 10, 20, 30 i 45 min (RAPTOR bez celu, z przesiadkami i dojściem pieszo).
+- **Automatyczna jakość:** przy mniej niż ok. 24 kl./s strona rysuje mniej szczegółów, potem większy piksel; wraca, gdy jest zapas.
+
+## Telefon i dostępność
+- **PWA:** strona otwarta przez http(s) da się zainstalować na ekranie telefonu i działa offline (ostatnio pobrany rozkład).
+  Service worker ma wersję ze skrótu strony, więc nowy build to od razu nowy cache.
+- **Klawiatura i czytniki ekranu:** wiersze list, numery linii i podpowiedzi to przyciski (Tab, Enter, spacja), okna są
+  dialogami z etykietami (fokus w środku, Escape zamyka, fokus wraca). Skróty: `/` szukaj, `L` linie, `P` planer, `H` częstotliwość,
+  `Q`/`E` obrót, strzałki lub WASD przesuwanie, spacja pauza. CI sprawdza stronę narzędziem axe-core.
+
+## Testy i CI
+```sh
+npm test            # testy jednostkowe: Python (prep, build, diff, dem, notatki) i Node (RAPTOR, linki, rozkład, proxy, pogoda…)
+npm ci && npx playwright install chromium
+npm run e2e         # przeglądarka na sieci testowej: ładowanie, szukajka, linki, planer, dane na żywo, PWA offline, a11y
+npm run screenshots # screeny do README z dist/index.html (po pipeline.py)
+```
+Testy działają na małej, sztucznej sieci z `tests/fixture.py`, bez pobierania danych.
+
+| Workflow | Kiedy | Co robi |
+|---|---|---|
+| `premerge` | PR i push na gałąź inną niż `main` | ruff, składnia JS, actionlint, testy (Python 3.9 i 3.12, Node), e2e, SAST (CodeQL, Semgrep), SCA (dependency review, OSV-Scanner), sekrety (gitleaks) |
+| `postmerge` | merge do `main`, raz w tygodniu, ręcznie | DAST (OWASP ZAP na `proxy.mjs`), pełny pipeline na prawdziwych danych, nowe screeny jako PR |
+| `release` | zamknięcie milestone'a `vX.Y.Z` albo ręcznie | tag, notatki z PR-ów milestone'a pogrupowane etykietami, `index.html` i paczka zip jako załączniki |
+
+**Wydania:** przypisz PR-y do milestone'a nazwanego jak wersja (np. `v1.2.0`) i zamknij go. Etykiety PR-ów
+(`feature`, `bug`, `security`, `docs`, `ci`) wyznaczają sekcje notatek, a `skip-changelog` pomija PR.
+Postmerge otwiera PR ze screenami; w ustawieniach repozytorium trzeba pozwolić Actions tworzyć PR-y
+(Settings → Actions → General → „Allow GitHub Actions to create and approve pull requests”).
+
 ## Ograniczenia
-- **Teren jest płaski.** Nie ma modelu wysokości, więc doliny i wzniesienia nie są widoczne.
+- **Rzeźba terenu** ma rozdzielczość ok. 90 m (model DEM), więc skarpy i nasypy są wygładzone. Budynki stoją na wysokości
+  terenu w punkcie środkowym, a budynki o złożonym obrysie dopasowują się w każdym narożniku.
 - **Wysokości budynków** pochodzą z OSM tylko dla ok. 21% budynków (`height`, `building:levels`).
-  Pozostałe są szacowane z typu i powierzchni. Wszystkie dachy są płaskie, kolor dachu zależy od typu budynku.
+  Pozostałe są szacowane z typu i powierzchni. Dachy dwuspadowe dostają tylko niskie, prostokątne domy jednorodzinne
+  (OSM rzadko podaje `roof:shape`), pozostałe dachy są płaskie.
 - **Drzewa w lasach** są rozmieszczane w granicach lasów z OSM, nie według rzeczywistych pozycji.
   Rzeczywiste pozycje mają tylko drzewa oznaczone w OSM pojedynczo.
 - Mapa obejmuje prostokąt sieci ZTM (`bbox`). Poza nim jest tylko trawa.
 - Paczka mkuran.pl (zapas) nie ma brygad, pełnych nazw linii ani nazw ulic (będą tylko podpisy przystanków).
 - Podpisujemy tylko ulice, którymi jeżdżą autobusy i na których są co najmniej dwa kolejne przystanki.
 
+## Licencja
+Kod: [MIT](LICENSE). Repozytorium nie zawiera danych. Zbudowana strona (`dist/`) zawiera dane na licencjach poniżej:
+przy jej publikowaniu trzeba zachować podpisy źródeł (strona pokazuje je w stopce i w ustawieniach).
+Czcionka Pixelify Sans (SIL OFL) ładuje się z Google Fonts, earcut jest na licencji ISC.
+
 ## Dane
 Mapa i adresy: © współtwórcy OpenStreetMap, licencja ODbL — https://www.openstreetmap.org/copyright.
+Zbudowana strona zawiera bazę danych pochodną od OSM; jej udostępnianie podlega ODbL (podanie źródła, ta sama licencja dla bazy).
+
+Pogoda: [Open-Meteo.com](https://open-meteo.com/), CC BY 4.0.
+Wysokości terenu: [Terrain Tiles](https://github.com/tilezen/joerd/blob/master/docs/attribution.md) (Mapzen, AWS Open Data).
+W Polsce źródłem jest głównie EU-DEM („Produced using Copernicus data and information funded by the European Union — EU-DEM layers”)
+oraz SRTM (NASA).
 
 Rozkład: ZTM Rzeszów — https://otwartedane.erzeszow.pl/dataset/rozklady-jazdy-gtfs,
 w opracowaniu kmrzeszow.live (zapasowo: mkuran.pl). Dane zostały przetworzone.

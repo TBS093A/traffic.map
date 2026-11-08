@@ -2,7 +2,7 @@
 // Kafle: rysujemy tylko te w kadrze. W kaflu instancje idą od największych, więc przy oddaleniu wystarczy początek listy.
 const TILE = 1500, LOD_AREA = [60, 300], LOD_TREE = [.7, .92];
 let WORLD = null;
-const lodLevel = () => cam.half < 1000 ? 0 : cam.half < 2600 ? 1 : 2;
+const lodLevel = () => Math.min(2, (cam.half < 1000 ? 0 : cam.half < 2600 ? 1 : 2) + perfLod());
 const tileKey = (x, y) => Math.floor(x / TILE) * 65536 + Math.floor(y / TILE);
 function undelta(a) { const o = new Float64Array(a.length); let x = 0, y = 0; for (let i = 0; i < a.length; i += 2) { x += a[i]; y += a[i + 1]; o[i] = x / 2; o[i + 1] = y / 2; } return o; }
 function ringArea(r) { let a = 0; const n = r.length; for (let i = 0; i < n; i += 2) { const j = (i + 2) % n; a += r[i] * r[j + 1] - r[j] * r[i + 1]; } return a / 2; }
