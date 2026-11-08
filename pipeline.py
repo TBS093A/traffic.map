@@ -37,6 +37,7 @@ sys.path.insert(0, HERE)
 from prep import prepare, REQUIRED  # noqa: E402
 from build import build, sources, write_extras, STATIC  # noqa: E402
 import osm  # noqa: E402
+from diff import summarize, compare, is_empty  # noqa: E402
 
 DEFAULTS = {
     "sources": [
@@ -350,7 +351,7 @@ def map_hash(cache):
 def code_hash(cfg):
     h = hashlib.sha256()
     static = [os.path.join(STATIC, f) for f in sorted(os.listdir(STATIC))] if os.path.isdir(STATIC) else []
-    for p in (*sources(cfg["template"]), *static,os.path.join(HERE, "prep.py"), os.path.join(HERE, "build.py"), os.path.join(HERE, "osm.py")):
+    for p in (*sources(cfg["template"]), *static, *(os.path.join(HERE, f) for f in ("prep.py", "build.py", "osm.py", "diff.py"))):
         h.update(sha256_file(p).encode())
     return h.hexdigest()
 
@@ -379,6 +380,8 @@ def build_from(zip_path, cfg, today, addresses=None, map_cache=None):
         size = build(data_json, cfg["template"], out_tmp)
         stats["html_bytes"] = size
         stats["covers_today"] = bool(stats["start"]) and stats["start"] <= today <= stats["end"]
+        with open(data_json, encoding="utf-8") as f:
+            stats["_summary"] = summarize(json.load(f))      # do porównania z poprzednim rozkładem
         return out_tmp, stats
 
 
@@ -475,6 +478,37 @@ def run(cfg, force=False):
     return 2
 
 
+def write_changes(summary, cfg):
+    """Porównuje nowy rozkład z poprzednim (work/summary.json) i zapisuje dist/changes.json.
+
+    Przy tej samej wersji rozkładu (np. przebudowa po zmianie kodu) zostawia poprzednie porównanie."""
+    if not summary:
+        return
+    path = os.path.join(cfg["work_dir"], "summary.json")
+    prev = None
+    if os.path.exists(path):
+        try:
+            with open(path, encoding="utf-8") as f:
+                prev = json.load(f)
+        except (OSError, ValueError):
+            prev = None
+    out = os.path.join(cfg["out_dir"], "changes.json")
+    if prev and prev.get("version") != summary.get("version"):
+        ch = compare(prev, summary)
+        ch["date"] = dt.date.today().isoformat()
+        with open(out + ".tmp", "w", encoding="utf-8") as f:
+            json.dump(ch, f, ensure_ascii=False, indent=1)
+        os.replace(out + ".tmp", out)
+        if is_empty(ch):
+            log.info("nowa wersja rozkładu %s bez zmian w liniach i przystankach", summary.get("version"))
+        else:
+            log.info("zmiany w rozkładzie: %d linii zmienionych, nowe: %s, zlikwidowane: %s", len(ch["changed"]),
+                     ", ".join(ch["added_routes"]) or "—", ", ".join(ch["removed_routes"]) or "—")
+    with open(path + ".tmp", "w", encoding="utf-8") as f:
+        json.dump(summary, f, ensure_ascii=False)
+    os.replace(path + ".tmp", path)
+
+
 def sha_short(path):
     return sha256_file(path)[:12]
 
@@ -483,6 +517,7 @@ def publish(tmp_html, stats, src, path, sha, key, state, cfg):
     index = os.path.join(cfg["out_dir"], "index.html")
     os.replace(tmp_html, index)                      # atomowa podmiana
     write_extras(cfg["out_dir"], version=sha_short(index))   # manifest, service worker, ikony
+    write_changes(stats.pop("_summary", None), cfg)
     for f in os.listdir(cfg["out_dir"]):             # posprzątaj resztki po fallbacku
         if f.startswith(".index.html.tmp"):
             os.remove(os.path.join(cfg["out_dir"], f))

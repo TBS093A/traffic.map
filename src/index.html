@@ -31,7 +31,7 @@
     <button data-speed="60">60×</button>
     <button data-now="1" title="Wróć do teraz">Teraz</button>
   </div>
-  <div class="row"><button id="bAlerts" class="warnbtn" hidden></button></div>
+  <div class="row"><button id="bAlerts" class="warnbtn" hidden></button><button id="bChanges" class="newsbtn" hidden>📰 Zmiany w rozkładzie</button></div>
 </div>
 
 <div id="tools">
@@ -86,6 +86,11 @@
   <div id="alertsBody"></div>
 </div></div>
 
+<div id="changesOv" class="overlay"><div class="panel">
+  <h3>Zmiany w rozkładzie <button data-close="changesOv" style="min-height:32px;width:34px;padding:0">✕</button></h3>
+  <div id="changesBody"></div>
+</div></div>
+
 <div id="setOv" class="overlay"><div class="panel">
   <h3>Ustawienia <button data-close="setOv" style="min-height:32px;width:34px;padding:0">✕</button></h3>
   <div class="set">
@@ -104,6 +109,7 @@
     <div class="note" id="liveStatus">Tryb rozkładowy: autobusy jeżdżą według rozkładu.</div>
     <p class="note">W podglądzie w Claude połączenia z innymi serwerami są blokowane. Na żywo działa po otwarciu strony z lokalnego serwera proxy (<code>proxy.mjs</code>).</p>
   </div>
+  <p class="note"><a href="#" id="changesLink" hidden>📰 Co się zmieniło w ostatnim rozkładzie</a></p>
   <div class="note" id="about"></div>
 </div></div>
 
@@ -140,6 +146,7 @@
 /*@include js/share.js*/
 /*@include js/timetable.js*/
 /*@include js/remind.js*/
+/*@include js/changes.js*/
 /*@include js/a11y.js*/
 /*@include js/main.js*/
 </script>
