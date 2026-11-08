@@ -407,12 +407,20 @@ def build_from(zip_path, cfg, today, addresses=None, map_cache=None, dem_path=No
             problems.append("brak dni kursowania w kalendarzu")
         if problems:
             raise ValueError("walidacja danych: " + "; ".join(problems))
+        # zmiany względem poprzedniego rozkładu trafiają do danych strony (bez osobnego pliku do pobrania)
+        with open(data_json, encoding="utf-8") as f:
+            data = json.load(f)
+        summary = summarize(data)
+        changes = schedule_changes(summary, cfg)
+        if changes:
+            data["changes"] = changes
+            with open(data_json, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
         out_tmp = os.path.join(cfg["out_dir"], ".index.html.tmp")
         size = build(data_json, cfg["template"], out_tmp)
         stats["html_bytes"] = size
         stats["covers_today"] = bool(stats["start"]) and stats["start"] <= today <= stats["end"]
-        with open(data_json, encoding="utf-8") as f:
-            stats["_summary"] = summarize(json.load(f))      # do porównania z poprzednim rozkładem
+        stats["_summary"], stats["_changes"] = summary, changes
         return out_tmp, stats
 
 
@@ -513,35 +521,43 @@ def run(cfg, force=False):
     return 2
 
 
-def write_changes(summary, cfg):
-    """Porównuje nowy rozkład z poprzednim (work/summary.json) i zapisuje dist/changes.json.
+def _read_json(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
 
-    Przy tej samej wersji rozkładu (np. przebudowa po zmianie kodu) zostawia poprzednie porównanie."""
-    if not summary:
-        return
-    path = os.path.join(cfg["work_dir"], "summary.json")
-    prev = None
-    if os.path.exists(path):
-        try:
-            with open(path, encoding="utf-8") as f:
-                prev = json.load(f)
-        except (OSError, ValueError):
-            prev = None
-    out = os.path.join(cfg["out_dir"], "changes.json")
+
+def _write_json(obj, path):
+    with open(path + ".tmp", "w", encoding="utf-8") as f:
+        json.dump(obj, f, ensure_ascii=False, indent=1)
+    os.replace(path + ".tmp", path)
+
+
+def schedule_changes(summary, cfg):
+    """Zmiany względem rozkładu z ostatniego udanego buildu (work/summary.json) albo None.
+
+    Przy tej samej wersji rozkładu (np. przebudowa po zmianie kodu) zwraca poprzednie porównanie."""
+    prev = _read_json(os.path.join(cfg["work_dir"], "summary.json"))
     if prev and prev.get("version") != summary.get("version"):
         ch = compare(prev, summary)
         ch["date"] = dt.date.today().isoformat()
-        with open(out + ".tmp", "w", encoding="utf-8") as f:
-            json.dump(ch, f, ensure_ascii=False, indent=1)
-        os.replace(out + ".tmp", out)
-        if is_empty(ch):
-            log.info("nowa wersja rozkładu %s bez zmian w liniach i przystankach", summary.get("version"))
-        else:
-            log.info("zmiany w rozkładzie: %d linii zmienionych, nowe: %s, zlikwidowane: %s", len(ch["changed"]),
-                     ", ".join(ch["added_routes"]) or "—", ", ".join(ch["removed_routes"]) or "—")
-    with open(path + ".tmp", "w", encoding="utf-8") as f:
-        json.dump(summary, f, ensure_ascii=False)
-    os.replace(path + ".tmp", path)
+        return None if is_empty(ch) else ch
+    last = _read_json(os.path.join(cfg["work_dir"], "changes.json"))
+    return last if last and last.get("to") == summary.get("version") else None
+
+
+def write_changes(summary, changes, cfg):
+    """Po udanej publikacji: zapamiętuje streszczenie rozkładu i porównanie; kopia w dist/changes.json."""
+    if not summary:
+        return
+    if changes:
+        _write_json(changes, os.path.join(cfg["work_dir"], "changes.json"))
+        _write_json(changes, os.path.join(cfg["out_dir"], "changes.json"))
+        log.info("zmiany w rozkładzie: %d linii zmienionych, nowe: %s, zlikwidowane: %s", len(changes["changed"]),
+                 ", ".join(changes["added_routes"]) or "—", ", ".join(changes["removed_routes"]) or "—")
+    _write_json(summary, os.path.join(cfg["work_dir"], "summary.json"))
 
 
 def sha_short(path):
@@ -552,7 +568,7 @@ def publish(tmp_html, stats, src, path, sha, key, state, cfg):
     index = os.path.join(cfg["out_dir"], "index.html")
     os.replace(tmp_html, index)                      # atomowa podmiana
     write_extras(cfg["out_dir"], version=sha_short(index))   # manifest, service worker, ikony
-    write_changes(stats.pop("_summary", None), cfg)
+    write_changes(stats.pop("_summary", None), stats.pop("_changes", None), cfg)
     for f in os.listdir(cfg["out_dir"]):             # posprzątaj resztki po fallbacku
         if f.startswith(".index.html.tmp"):
             os.remove(os.path.join(cfg["out_dir"], f))

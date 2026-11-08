@@ -1,18 +1,13 @@
 /* ======================= ZMIANY W ROZKŁADZIE ======================= */
-// changes.json pisze pipeline.py (diff.py), gdy przyszła nowa wersja rozkładu.
+// Porównanie z poprzednią wersją rozkładu wkleja pipeline.py (diff.py) do danych strony: D.changes.
 // Przycisk w górnym panelu widać, dopóki ktoś nie obejrzy zmian w danej wersji.
 const CHANGES = { data: null };
-async function loadChanges() {
-  if (!/^https?:$/.test(location.protocol)) return;
-  try {
-    const r = await fetch('changes.json', { cache: 'no-cache' });
-    if (!r.ok) return;
-    const ch = await r.json();
-    if (!ch || !(ch.added_routes?.length || ch.removed_routes?.length || ch.changed?.length || ch.added_stops?.length || ch.removed_stops?.length)) return;
-    CHANGES.data = ch;
-    $('#changesLink').hidden = false;
-    if (store.get('changesSeen', '') !== ch.to) $('#bChanges').hidden = false;
-  } catch (e) { /* brak pliku: nic do pokazania */ }
+function loadChanges() {
+  const ch = D.changes;
+  if (!ch || !(ch.added_routes?.length || ch.removed_routes?.length || ch.changed?.length || ch.added_stops?.length || ch.removed_stops?.length)) return;
+  CHANGES.data = ch;
+  $('#changesLink').hidden = false;
+  if (store.get('changesSeen', '') !== ch.to) $('#bChanges').hidden = false;
 }
 const routeChip = n => { const i = D.routes.findIndex(r => r.n === n); return i >= 0 ? chip(i) : `<span class="chip" style="background:#8c8c96">${esc(n)}</span>`; };
 function openChanges() {
