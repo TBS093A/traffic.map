@@ -1,5 +1,5 @@
 // Dostępność: obsługa z klawiatury i automatyczny audyt axe-core (bez naruszeń krytycznych i poważnych).
-import { test, before, after } from 'node:test';
+import { test, before, after, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { buildFixture, serve, launch, open } from './browser.mjs';
@@ -8,6 +8,7 @@ const axePath = createRequire(import.meta.url).resolve('axe-core/axe.min.js');
 let server, browser;
 before(async () => { server = await serve(buildFixture()); browser = await launch(); });
 after(async () => { await browser?.close(); server?.stop(); });
+afterEach(async () => { for (const c of browser?.contexts() || []) await c.close().catch(() => {}); });
 
 async function audit(page, scope) {
   await page.addScriptTag({ path: axePath });
@@ -18,6 +19,7 @@ async function audit(page, scope) {
 test('z klawiatury: szukaj, wybierz przystanek, zamknij Escape', async () => {
   const { page, ctx } = await open(browser, server.url);
   await page.keyboard.press('/');
+  await page.waitForFunction(() => document.activeElement?.id === 'q');   // pole dostaje fokus chwilę po otwarciu
   await page.keyboard.type('zach');
   await page.waitForSelector('#results li[data-g][role=button]');
   await page.keyboard.press('Tab');
