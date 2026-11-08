@@ -87,7 +87,7 @@ function stopSheet(si) {
   <h2>🚏 ${esc(grp.name)}</h2><div class="sub">${multi ? grp.members.length + ' słupki · ' : ''}odjazdy w ciągu godziny · ${routes.map(r => chip(r)).join(' ')}</div>
   ${alertsHtml(alertsFor({ stops: selSide >= 0 ? [selSide] : grp.members, routes }))}
   ${tabs}
-  <div class="btnrow"><button data-act="planfrom">🧭 Stąd</button><button data-act="planto">🧭 Dotąd</button><button data-act="timetable">📅 Rozkład</button>${shareBtn()}</div>
+  <div class="btnrow"><button data-act="planfrom">🧭 Stąd</button><button data-act="planto">🧭 Dotąd</button><button data-act="timetable">📅 Rozkład</button><button data-act="reach" title="Dokąd dojedziesz stąd w 10, 20, 30 i 45 min">⏱ Zasięg</button>${shareBtn()}</div>
   ${fbar}
   <ul class="list">${rows || `<li class="past">${stopFilter === 'act' ? 'Teraz żaden autobus nie jedzie w stronę tego przystanku.' : 'Brak odjazdów w najbliższej godzinie.'}</li>`}</ul>`;
 }
@@ -129,6 +129,7 @@ $('#sheet').addEventListener('click', e => {
   const a = e.target.closest('[data-act],[data-stop],[data-trip]'); if (!a) return;
   if (a.dataset.act === 'share') { shareView(); return; }
   if (a.dataset.act === 'timetable') { openTimetable(); return; }
+  if (a.dataset.act === 'reach') { showReach(selStop); return; }
   if (a.dataset.act === 'alerts') { e.preventDefault(); openAlerts(); return; }
   if (a.dataset.act === 'close') { select({ route: -1 }); return; }
   if (a.dataset.act === 'planclose') { plan.sel = -1; select({ route: -1 }); return; }
@@ -213,6 +214,7 @@ addEventListener('keydown', e => {
   else if (k === ' ') { setSpeed(clock.speed ? 0 : 1); syncSpeedBtns(); e.preventDefault(); }
   else if (k === 'escape') select({ route: -1 });
   else if (k === 'l') openLines();
+  else if (k === 'h') toggleFreq();
   else if (k === '/') { e.preventDefault(); openSearch(); }
   else if (k === 'p') openPlanner();});
 $('#bRotL').onclick = () => rot(-1); $('#bRotR').onclick = () => rot(1);

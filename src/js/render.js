@@ -36,6 +36,7 @@ function render(now) {
     gl.uniform1i(roadP.u.uMode, 1); gl.uniform1f(roadP.u.uY, .12); gl.uniform1f(roadP.u.uHW, Math.max(2.8, texel * 1.6)); gl.uniform3f(roadP.u.uHL, c[0] / 255, c[1] / 255, c[2] / 255);
     gl.bindVertexArray(hlGeo.vao); gl.drawArrays(gl.TRIANGLES, 0, hlGeo.count);
   }
+  syncFreq(simState.w); drawFreq(texel);
   setPlanGeo();
   for (const g of plan.geo) {
     gl.uniform1i(roadP.u.uMode, g.mode); gl.uniform1f(roadP.u.uY, .16);
@@ -43,6 +44,7 @@ function render(now) {
     gl.uniform3f(roadP.u.uHL, g.color[0] / 255, g.color[1] / 255, g.color[2] / 255);
     gl.bindVertexArray(g.vao); gl.drawArrays(gl.TRIANGLES, 0, g.count);
   }
+  drawIso(sun);
   common(boxP);
   if (opt.bld && WORLD) {
     const lvl = lodLevel(), vb = viewBounds();

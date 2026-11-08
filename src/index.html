@@ -55,6 +55,7 @@
   <div class="fbar"><button data-lf="all">Wszystkie</button><button data-lf="act">Aktywne (na trasie)</button></div>
   <div id="lineGrid"></div>
   <p class="note">Wybierz linię, żeby podświetlić jej trasę i autobusy.</p>
+  <div class="btnrow"><button id="bFreq" title="Trasy w kolorze liczby kursów na godzinę (H)">🔥 Częstotliwość kursów na mapie</button></div>
 </div></div>
 
 <div id="searchOv" class="overlay"><div class="panel">
@@ -116,6 +117,7 @@
   <div class="note" id="about"></div>
 </div></div>
 
+<div id="legend" class="panel" hidden></div>
 <div id="attr"></div>
 <div id="toast" class="panel"></div>
 <div id="hint" class="panel">Przeciągnij, by przesuwać · kółko / szczypnięcie: zoom · Q/E: obrót</div>
@@ -149,6 +151,8 @@
 /*@include js/links.js*/
 /*@include js/share.js*/
 /*@include js/timetable.js*/
+/*@include js/frequency.js*/
+/*@include js/freqmap.js*/
 /*@include js/remind.js*/
 /*@include js/changes.js*/
 /*@include js/a11y.js*/

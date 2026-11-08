@@ -113,6 +113,12 @@ a{color:var(--acc)}
 .tt .past{opacity:.4}
 .warn{color:#ff9a7a}
 .warnbtn{background:#5a2a20;border-color:#a8503a;color:#ffd9c9;min-height:30px;padding:3px 10px;font-size:13px}
+#legend{position:fixed;right:10px;bottom:22px;padding:8px 10px;font-size:12px;z-index:2;max-width:230px}
+#legend[hidden]{display:none}
+#legend div{display:flex;align-items:center;gap:6px;margin:2px 0}
+#legend i{width:14px;height:10px;border:1px solid rgba(0,0,0,.5)}
+#legend .lgh{font-weight:600;justify-content:space-between;margin-top:4px}
+#legend .lgh button{min-height:22px;width:24px;padding:0;font-size:11px}
 .newsbtn{background:#2c4a6e;border-color:#3f6f9e;min-height:30px;padding:3px 10px;font-size:13px}
 .alert{margin:6px 0;padding:6px 9px;border:2px solid #a8503a;background:rgba(168,80,58,.16);font-size:13px}
 .alert summary{cursor:pointer}
