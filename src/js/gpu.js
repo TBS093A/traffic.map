@@ -9,7 +9,7 @@ function makeTex(w, h, ifmt, fmt, type) {
 function resize() {
   const dpr = Math.min(window.devicePixelRatio || 1, 3);
   const W = Math.floor(innerWidth * dpr), H = Math.floor(innerHeight * dpr);
-  const ps = Math.max(1, Math.round(opt.ps * dpr));
+  const ps = Math.max(1, Math.round((opt.ps + perfPixel()) * dpr));
   const lw = Math.ceil(W / ps), lh = Math.ceil(H / ps);
   if (canvas.width === W && canvas.height === H && R.low[0] === lw && R.low[1] === lh && R.ps === ps) return;
   canvas.width = W; canvas.height = H; R.ps = ps; R.dpr = dpr;

@@ -96,6 +96,7 @@
 <div id="setOv" class="overlay"><div class="panel">
   <h3>Ustawienia <button data-close="setOv" style="min-height:32px;width:34px;padding:0">✕</button></h3>
   <div class="set">
+    <label>Automatyczna jakość<br><small class="note" id="perfNote"></small></label><div class="seg" data-opt="auto"><button data-v="1">wł.</button><button data-v="0">wył.</button></div>
     <label>Rozmiar piksela</label><div class="seg" data-opt="ps"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button></div>
     <label>Paleta</label><div class="seg" data-opt="pal"><button data-v="1">wł.</button><button data-v="0">wył.</button></div>
     <label>Dithering</label><div class="seg" data-opt="dith"><button data-v="1">wł.</button><button data-v="0">wył.</button></div>
@@ -133,6 +134,7 @@
 /*@include js/data.js*/
 /*@include js/time.js*/
 /*@include js/gl.js*/
+/*@include js/perf.js*/
 /*@include js/shaders.js*/
 /*@include js/gpu.js*/
 /*@include js/terrain.js*/

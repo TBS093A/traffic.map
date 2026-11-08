@@ -26,6 +26,11 @@
     ],
     "max_age_days": 14
   },
+  "dem": {
+    "enabled": true,
+    "url": "https://api.open-meteo.com/v1/elevation",
+    "step_m": 200
+  },
   "map": {
     "enabled": true,
     "url": "https://overpass-api.de/api/interpreter",

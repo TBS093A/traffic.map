@@ -266,7 +266,7 @@ $('#results').addEventListener('click', e => {
   else if (g) { listClick(e, 'searchOv'); return; }
   else return;
   $('#searchOv').classList.remove('show');
-}); $('#bSet').onclick = () => openOv('setOv');
+}); $('#bSet').onclick = () => { syncPerfNote(); openOv('setOv'); };
 let hintHidden = false; function hideHint() { if (!hintHidden) { hintHidden = true; $('#hint').style.opacity = 0; } }
 setTimeout(hideHint, 9000);
 

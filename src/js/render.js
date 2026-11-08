@@ -1,7 +1,7 @@
 /* ======================= RENDER ======================= */
 let lastFrame = performance.now(), simState = null;
 function render(now) {
-  const dt = Math.min(.1, (now - lastFrame) / 1000); lastFrame = now;
+  const dt = Math.min(.1, (now - lastFrame) / 1000); perfTick((now - lastFrame) / 1000, now); lastFrame = now;
   resize();
   cam.yaw += (cam.yawT - cam.yaw) * Math.min(1, dt * 9);
   const ms = simMs();
