@@ -144,18 +144,22 @@ Bez danych OSM (np. `"map": {"enabled": false}`) strona wraca do zabudowy poglą
 - **Przystanki:** przy każdym słupku stoi wiata (dach, szklana ściana, żółto-zielony znak), z daleka powiększona,
   a na jej dachu duża kropka, widoczna i klikalna przy każdym zoomie. Jeden podpis na grupę słupków o tej samej nazwie, zawsze w pełni widoczny, także za budynkiem.
   Tablica odjazdów łączy wszystkie słupki grupy.
+  Odjazdy autobusów, które już jadą w stronę przystanku, są wyróżnione (ile przystanków stąd); filtr „W drodze” pokazuje tylko je.
 - **Zaznaczony autobus lub linia:** jego przystanki są wyróżnione i podpisane przy każdym zoomie, pozostałe przygaszone.
   Podpis przystanku klika się tak samo jak kropka. Z daleka kropki są mniejsze, żeby nie zasłaniały mapy.
 - **Szukajka** (🔍 albo `/`): linie po numerze lub nazwie trasy, przystanki po nazwie,
   bez względu na polskie znaki.
 
 ## Lista przystanków i planer połączeń
+- **🚌** to lista linii z filtrem „Wszystkie / Aktywne” (aktywne: z autobusem teraz na trasie).
 - **🚏** to alfabetyczna lista przystanków z filtrem i liniami, które się na nich zatrzymują.
 - **🧭** (albo klawisz `P`, albo „Stąd” / „Dotąd” na tablicy przystanku) wyznacza połączenie
   algorytmem RAPTOR (Round-based Public Transit Routing). Liczy najszybszy dojazd bezpośrednio,
   z 1, 2 i 3 przesiadkami. Pokazuje tylko warianty, w których dodatkowa przesiadka daje szybszy dojazd.
   Uwzględnia przejścia piesze do 400 m (1,2 m/s, współczynnik krętości 1,25),
   minimum 60 s na przesiadkę i okno 4 h od wybranej godziny. Jedno wyszukiwanie trwa kilka ms w przeglądarce.
+- Warianty są posortowane od najkrótszego czasu podróży, a pierwszy od razu trafia na mapę. „Poprzedni wariant”
+  wraca do trasy pokazanej wcześniej, także sprzed „Późniejszych odjazdów”.
 - Wybrany wariant jest rysowany na mapie: przejazdy w kolorach linii, przejścia piesze przerywaną
   linią, przystanki wsiadania i wysiadania podświetlone. Autobusy z wariantu są wyróżnione.
 

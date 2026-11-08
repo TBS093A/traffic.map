@@ -38,6 +38,11 @@ button.on{background:var(--acc);color:#141622;border-color:var(--acc)}
 .list li{display:flex;gap:8px;align-items:center;padding:6px 2px;border-top:1px solid var(--line);cursor:pointer}
 .list li.past{opacity:.45}
 .list li.now{background:rgba(242,209,107,.12)}
+.list li.act{box-shadow:inset 3px 0 0 #6ee07a}
+.list .go{color:#8be894;font-size:12px;white-space:nowrap}
+.fbar{display:flex;gap:4px;margin:6px 0}
+.fbar button{min-height:30px;padding:3px 10px;font-size:13px}
+.opts .best{color:#8be894;font-size:12px;margin-left:6px}
 .list .t{font-family:var(--px);min-width:46px}
 .list .grow{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .list .mut{color:var(--mut);font-size:12px;white-space:nowrap}
@@ -143,6 +148,7 @@ a{color:var(--acc)}
 
 <div id="linesOv" class="overlay"><div class="panel">
   <h3>Linie ZTM <button data-close="linesOv" style="min-height:32px;width:34px;padding:0">✕</button></h3>
+  <div class="fbar"><button data-lf="all">Wszystkie</button><button data-lf="act">Aktywne (na trasie)</button></div>
   <div id="lineGrid"></div>
   <p class="note">Wybierz linię, żeby podświetlić jej trasę i autobusy.</p>
 </div></div>
@@ -1169,16 +1175,19 @@ function updateBadges() {
 }
 
 /* ======================= UI ======================= */
-let lastUI = 0, lastSheet = 0;
+let lastUI = 0, lastSheet = 0, sheetPressed = false;   // wciśnięty palec/kursor na arkuszu: odświeżanie czeka
+$('#sheet').addEventListener('pointerdown', () => { sheetPressed = true; });
+addEventListener('pointerup', () => { sheetPressed = false; }); addEventListener('pointercancel', () => { sheetPressed = false; });
 function updateUI(now) {
   if (now - lastUI < 200) return; lastUI = now;
   const ms = simMs(), w = simState.w;
   $('#clock').textContent = fmtT(w.sec) + ':' + String(Math.floor(w.sec % 60)).padStart(2, '0');
   $('#day').textContent = dayFmt.format(new Date(ms)) + (simState.fallback ? ' · rozkład wzorcowy' : '') + (live.map.size && Date.now() - live.last < 90000 ? ' · NA ŻYWO' : '');
-  if (now - lastSheet > 1000) { lastSheet = now; renderSheet(); }
+  if (now - lastSheet > 1000 && !sheetPressed) { lastSheet = now; renderSheet(); }
 }
 
-function sheetShow(html) { const s = $('#sheet'); s.innerHTML = html; s.classList.add('show'); document.documentElement.style.setProperty('--sheetH', (s.offsetHeight + 10) + 'px'); }
+// arkusz odświeża się co sekundę: podmieniamy treść tylko gdy się zmieniła, żeby przyciski nie znikały spod palca w trakcie kliknięcia
+function sheetShow(html) { const s = $('#sheet'); if (s._html !== html) { s.innerHTML = html; s._html = html; } s.classList.add('show'); document.documentElement.style.setProperty('--sheetH', (s.offsetHeight + 10) + 'px'); }
 function sheetHide() { $('#sheet').classList.remove('show'); document.documentElement.style.setProperty('--sheetH', '0px'); }
 const chip = r => `<span class="chip" style="background:${rgbCss(D.routes[r].c)}">${esc(D.routes[r].n)}</span>`;
 
@@ -1227,17 +1236,22 @@ function departuresOne(si, w, horizon) {
     let off; if (svT.has(tr.service)) off = 0; else if (svY.has(tr.service)) off = -86400; else continue;
     const lv = live.map.get(tr.id), delay = lv ? lv.delay : 0;
     const dep = tr.times[2 * k + 1] + off + delay;
-    if (dep >= w.sec - 30 && dep <= w.sec + horizon) res.push({ ti, dep, live: !!lv, delay });
+    if (dep >= w.sec - 30 && dep <= w.sec + horizon) res.push({ ti, k, dep, live: !!lv, delay });
   }
   return res.sort((a, b) => a.dep - b.dep).slice(0, 40);
 }
 function stopSheet(si) {
   const grp = S.groups[S.stopGroup[si]], w = simState.w;
   if (selSide >= 0 && !grp.members.includes(selSide)) selSide = -1;
-  const deps = selSide >= 0 ? departuresOne(selSide, w, 3600).map(d => ({ ...d, si: selSide })) : departures(si, w, 3600);
+  const all = selSide >= 0 ? departuresOne(selSide, w, 3600).map(d => ({ ...d, si: selSide })) : departures(si, w, 3600);
+  const onRoad = new Map(buses.filter(b => b.ti >= 0).map(b => [b.ti, b]));   // kursy, które teraz jadą
+  const active = all.filter(d => { const b = onRoad.get(d.ti); return b && b.k <= d.k; });
+  const deps = stopFilter === 'act' ? active : all;
   const multi = grp.members.length > 1;
-  const rows = deps.map(d => { const tr = S.trips[d.ti], m = Math.round((d.dep - w.sec) / 60);
-    return `<li data-trip="${d.ti}"><span class="t">${fmtT(d.dep)}</span>${chip(tr.route)}<span class="grow">${esc(tr.head)}</span>${multi && selSide < 0 ? `<span class="pl">${esc(S.side[d.si].plat)}</span>` : ''}<span class="mut">${m <= 0 ? 'teraz' : 'za ' + m + ' min'}${d.live ? ' ●' : ''}</span></li>`; }).join('');
+  const rows = deps.map(d => { const tr = S.trips[d.ti], m = Math.round((d.dep - w.sec) / 60), b = onRoad.get(d.ti), left = b && b.k <= d.k ? d.k - b.k : -1;
+    const go = left < 0 ? '' : `<span class="go">${left === 0 ? (b.at ? '● na przystanku' : '● dojeżdża') : `● w drodze · ${left} ${left === 1 ? 'przystanek' : left % 10 >= 2 && left % 10 <= 4 && (left % 100 < 10 || left % 100 >= 20) ? 'przystanki' : 'przystanków'} stąd`}</span>`;
+    return `<li data-trip="${d.ti}" class="${left >= 0 ? 'act' : ''}"><span class="t">${fmtT(d.dep)}</span>${chip(tr.route)}<span class="grow">${esc(tr.head)}${go ? '<br>' + go : ''}</span>${multi && selSide < 0 ? `<span class="pl">${esc(S.side[d.si].plat)}</span>` : ''}<span class="mut">${m <= 0 ? 'teraz' : 'za ' + m + ' min'}${d.live ? ' ●' : ''}</span></li>`; }).join('');
+  const fbar = `<div class="fbar"><button data-sf="all" class="${stopFilter === 'all' ? 'on' : ''}">Wszystkie odjazdy</button><button data-sf="act" class="${stopFilter === 'act' ? 'on' : ''}">W drodze (${active.length})</button></div>`;
   const tabs = multi ? `<div class="sides"><button data-side="-1" class="${selSide < 0 ? 'on' : ''}">Obie strony</button>${grp.members.map(m => { const sd = S.side[m];
       return `<button data-side="${m}" class="${selSide === m ? 'on' : ''}"><b>${esc(sd.plat)}</b> ${esc(sideText(m))}${sd.next && !sd.arrOnly ? `<small>następny: ${esc(sd.next)}</small>` : ''}</button>`; }).join('')}</div>`
     : `<div class="sub">${esc(sideText(grp.members[0]))}${S.side[grp.members[0]].next ? ' · następny: ' + esc(S.side[grp.members[0]].next) : ''}</div>`;
@@ -1246,7 +1260,8 @@ function stopSheet(si) {
   <h2>🚏 ${esc(grp.name)}</h2><div class="sub">${multi ? grp.members.length + ' słupki · ' : ''}odjazdy w ciągu godziny · ${routes.map(r => chip(r)).join(' ')}</div>
   ${tabs}
   <div class="btnrow"><button data-act="planfrom">🧭 Stąd</button><button data-act="planto">🧭 Dotąd</button></div>
-  <ul class="list">${rows || '<li class="past">Brak odjazdów w najbliższej godzinie.</li>'}</ul>`;
+  ${fbar}
+  <ul class="list">${rows || `<li class="past">${stopFilter === 'act' ? 'Teraz żaden autobus nie jedzie w stronę tego przystanku.' : 'Brak odjazdów w najbliższej godzinie.'}</li>`}</ul>`;
 }
 function routeSheet(ri) {
   const r = D.routes[ri];
@@ -1268,7 +1283,7 @@ function fitShapes(shapeIdxs) {
   const asp = innerWidth / innerHeight; cam.half = clamp(Math.max(ext * .62 / asp, ext * .62 * Math.sin(cam.elev)), 150, 7000); follow = false;
 }
 
-let selSide = -1;
+let selSide = -1, stopFilter = store.get('stopFilter', 'all');
 function select({ trip = -1, stop = -1, route, side }) {
   selTrip = trip; selStop = stop; if (route !== undefined) selRoute = route;
   selSide = side !== undefined ? side : (stop >= 0 ? stop : -1);
@@ -1278,6 +1293,8 @@ function select({ trip = -1, stop = -1, route, side }) {
 }
 
 $('#sheet').addEventListener('click', e => {
+  const sf = e.target.closest('[data-sf]'); if (sf) { stopFilter = sf.dataset.sf; store.set('stopFilter', stopFilter); lastSheet = 0; renderSheet(); return; }
+  const pp = e.target.closest('[data-act="planprev"]'); if (pp) { planBack(); return; }
   const sd = e.target.closest('[data-side]'); if (sd) { selSide = +sd.dataset.side; lastSheet = 0; renderSheet(); return; }
   const a = e.target.closest('[data-act],[data-stop],[data-trip]'); if (!a) return;
   if (a.dataset.act === 'close') { select({ route: -1 }); return; }
@@ -1362,7 +1379,7 @@ addEventListener('keydown', e => {
   else if (k === 'a' || k === 'arrowleft') panBy(-1, 0); else if (k === 'd' || k === 'arrowright') panBy(1, 0);
   else if (k === ' ') { setSpeed(clock.speed ? 0 : 1); syncSpeedBtns(); e.preventDefault(); }
   else if (k === 'escape') select({ route: -1 });
-  else if (k === 'l') openOv('linesOv');
+  else if (k === 'l') openLines();
   else if (k === '/') { e.preventDefault(); openSearch(); }
   else if (k === 'p') openPlanner();
 });
@@ -1373,7 +1390,16 @@ $('#speeds').addEventListener('click', e => { const b = e.target.closest('button
   if (b.dataset.now) { clock.base = Date.now(); clock.perf = performance.now(); clock.speed = 1; } else setSpeed(+b.dataset.speed); syncSpeedBtns(); lastSheet = 0; });
 function openOv(id) { $('#' + id).classList.add('show'); }
 document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o || e.target.closest('[data-close]')) o.classList.remove('show'); }));
-$('#bLines').onclick = () => openOv('linesOv'); $('#bSearch').onclick = openSearch;
+// lista linii: wszystkie albo tylko te, których autobus jest teraz na trasie
+let lineFilter = store.get('lineFilter', 'all');
+function renderLines() {
+  const act = new Set(buses.filter(b => b.ti >= 0).map(b => S.trips[b.ti].route));
+  document.querySelectorAll('[data-lf]').forEach(b => { b.classList.toggle('on', b.dataset.lf === lineFilter); if (b.dataset.lf === 'act') b.textContent = `Aktywne (${act.size})`; });
+  const list = D.routes.map((r, i) => [r, i]).filter(([, i]) => lineFilter === 'all' || act.has(i));
+  $('#lineGrid').innerHTML = list.map(([r, i]) => `<span class="chip" data-r="${i}" style="background:${rgbCss(r.c)}${lineFilter === 'all' && !act.has(i) ? ';opacity:.45' : ''}" title="${esc(r.name)}">${esc(r.n)}</span>`).join('') || '<p class="note">Teraz żadna linia nie ma autobusu na trasie.</p>';
+}
+const openLines = () => { renderLines(); openOv('linesOv'); };
+$('#bLines').onclick = openLines; $('#bSearch').onclick = openSearch;
 $('#bStops').onclick = () => { openOv('stopsOv'); renderStopList($('#sq').value); };
 $('#sq').addEventListener('input', e => renderStopList(e.target.value));
 $('#stopList').addEventListener('click', e => listClick(e, 'stopsOv'));
@@ -1391,8 +1417,8 @@ $('#planOv').addEventListener('click', e => {
   if (sg) { setPlace(sg.dataset.f, plan.sugg[sg.dataset.f][+sg.dataset.pi]); return; }
   if (!e.target.closest('.pf')) fieldBox('from').innerHTML = fieldBox('to').innerHTML = '';
   const o = e.target.closest('[data-o]');
-  if (o) { plan.sel = +o.dataset.o; selTrip = -1; selStop = -1; selRoute = -1; follow = false; setPlanGeo(); fitPlan(); $('#planOv').classList.remove('show'); lastSheet = 0; renderSheet(); return; }
-  const pa = e.target.closest('[data-pact]'); if (pa && pa.dataset.pact === 'later') runPlan(true);
+  if (o) { if (+o.dataset.o !== plan.sel) planRemember(); plan.sel = +o.dataset.o; selTrip = -1; selStop = -1; selRoute = -1; follow = false; setPlanGeo(); fitPlan(); $('#planOv').classList.remove('show'); lastSheet = 0; renderSheet(); return; }
+  const pa = e.target.closest('[data-pact]'); if (pa && pa.dataset.pact === 'later') runPlan(true); if (pa && pa.dataset.pact === 'prev') planBack();
 });
 $('#pSwap').onclick = () => { [plan.fromP, plan.toP] = [plan.toP, plan.fromP]; syncPlanFields(); runPlan(); };
 $('#pNow').onclick = () => { $('#pTime').value = fmtT(warsaw(simMs()).sec); runPlan(); };
@@ -1835,7 +1861,7 @@ function reverseGeocode(x, y) {
 /* ======================= PLANER POŁĄCZEŃ (RAPTOR) ======================= */
 // Round-based Public Transit Routing: runda k = najlepsze dojazdy z co najwyżej k przejazdami.
 // Start/cel: przystanek, punkt (adres, GPS, wskazanie) albo cała ulica — z dojściem pieszym do 1 km.
-const plan = { fromP: null, toP: null, t: null, options: [], sel: -1, geo: [], key: '', sugg: { from: [], to: [] }, me: null };
+const plan = { fromP: null, toP: null, t: null, options: [], sel: -1, geo: [], key: '', sugg: { from: [], to: [] }, me: null, hist: [] };
 const WALK_MAX = 400, ACCESS_R = 1000, DIRECT_WALK = 2500, MAX_ROUNDS = 4, HORIZON = 4 * 3600, MIN_CHANGE = 60;
 const walkSec = d => Math.round(d * 1.25 / 1.2);
 
@@ -2070,11 +2096,23 @@ function runPlan(later) {
   const w = warsaw(simMs()); let t0;
   if (later && plan.options.length) t0 = Math.min(...plan.options.filter(o => o.rides).map(o => o.dep).concat([plan.t + 600])) + 60;
   else { const [h, m] = ($('#pTime').value || fmtT(w.sec)).split(':').map(Number); t0 = h * 3600 + m * 60; }
+  if (later) planRemember(); else plan.hist = [];
   plan.t = t0;
   const t1 = performance.now();
-  plan.options = planRoute(plan.fromP, plan.toP, w.ymd, t0);
+  // od najkrótszego czasu podróży; przy remisie wcześniejszy przyjazd, potem mniej przesiadek
+  plan.options = planRoute(plan.fromP, plan.toP, w.ymd, t0).sort((a, b) => (a.arr - a.dep) - (b.arr - b.dep) || a.arr - b.arr || a.rides - b.rides);
   plan.ms = Math.round(performance.now() - t1);
-  plan.sel = -1; plan.key = '#'; renderPlanResults();
+  plan.sel = plan.options.length ? 0 : -1; plan.key = '#';
+  if (plan.sel >= 0) { selTrip = -1; selStop = -1; selRoute = -1; setPlanGeo(); }
+  renderPlanResults(); lastSheet = 0; renderSheet();
+}
+// historia wariantów: "Poprzedni wariant" wraca do trasy pokazanej wcześniej (także sprzed "Późniejszych odjazdów")
+function planRemember() { if (plan.options.length) plan.hist.push({ t: plan.t, options: plan.options, sel: plan.sel, ms: plan.ms }); }
+function planBack() {
+  const h = plan.hist.pop(); if (!h) return;
+  Object.assign(plan, h); plan.key = '#'; selTrip = -1; selStop = -1; selRoute = -1;
+  if (plan.sel >= 0) { setPlanGeo(); fitPlan(); }
+  renderPlanResults(); lastSheet = 0; renderSheet();
 }
 function renderPlanResults(msg) {
   const box = $('#pRes');
@@ -2088,9 +2126,9 @@ function renderPlanResults(msg) {
     : '<p class="note">Brak bezpośredniej linii w tym czasie, poniżej warianty z przesiadkami:</p>';
   const trText = o => o.rides === 0 ? 'pieszo' : o.transfers === 0 ? 'bez przesiadek' : o.transfers + ' ' + (o.transfers === 1 ? 'przesiadka' : 'przesiadki');
   box.innerHTML = head + '<ul class="list opts">' + plan.options.map((o, i) => `<li data-o="${i}" class="${i === plan.sel ? 'now' : ''}">
-    <div class="ot"><b class="t">${fmtT(o.dep)} → ${fmtT(o.arr)}</b><span class="mut">${dur(o.arr - o.dep)} · ${trText(o)}</span></div>
+    <div class="ot"><b class="t">${fmtT(o.dep)} → ${fmtT(o.arr)}${i === 0 && plan.options.length > 1 ? '<span class="best">najkrócej</span>' : ''}</b><span class="mut">${dur(o.arr - o.dep)} · ${trText(o)}</span></div>
     <div class="ol">${legChips(o)}</div></li>`).join('') + '</ul>' +
-    `<div class="btnrow"><button data-pact="later">Późniejsze odjazdy</button></div><p class="note">Policzono w ${plan.ms} ms. Każdy kolejny wariant ma więcej przesiadek, ale dojeżdża szybciej.</p>` + addrNote;
+    `<div class="btnrow">${plan.hist.length ? '<button data-pact="prev">↶ Poprzedni wariant</button>' : ''}<button data-pact="later">Późniejsze odjazdy</button></div><p class="note">Policzono w ${plan.ms} ms. Warianty od najkrótszego czasu podróży; pierwszy jest od razu na mapie.</p>` + addrNote;
 }
 function planSheet() {
   const o = plan.options[plan.sel], w = simState.w;
@@ -2102,7 +2140,7 @@ function planSheet() {
   return `<button class="close" data-act="planclose">✕</button>
   <h2>🧭 ${esc(plan.fromP.label)} → ${esc(plan.toP.label)}</h2>
   <div class="sub">${fmtT(o.dep)} → ${fmtT(o.arr)} · ${dur(o.arr - o.dep)} · ${o.rides === 0 ? 'pieszo' : o.transfers === 0 ? 'bez przesiadek' : o.transfers + ' ' + (o.transfers === 1 ? 'przesiadka' : 'przesiadki')}</div>
-  <div class="btnrow"><button data-act="planopts">Inne warianty</button><button data-act="planfit">Pokaż całą trasę</button></div>
+  <div class="btnrow">${plan.hist.length ? '<button data-act="planprev">↶ Poprzedni wariant</button>' : ''}<button data-act="planopts">Inne warianty</button><button data-act="planfit">Pokaż całą trasę</button></div>
   <ul class="list">${rows}<li class="leg end"><span class="t">${fmtT(o.arr)}</span><span class="grow">🏁 <b>${esc(plan.toP.label)}</b></span></li></ul>`;
 }
 
@@ -2162,7 +2200,8 @@ async function main() {
   if (!WORLD) { const rg = stripGeo(S.shapes.map((_, i) => i)); roadV = vaoFrom(rg, STRIP); roadCount = rg.length / 7; }
 
   // UI: linie, info
-  $('#lineGrid').innerHTML = D.routes.map((r, i) => `<span class="chip" data-r="${i}" style="background:${rgbCss(r.c)}" title="${esc(r.name)}">${esc(r.n)}</span>`).join('');
+  renderLines();
+  document.querySelectorAll('[data-lf]').forEach(b => b.onclick = () => { lineFilter = b.dataset.lf; store.set('lineFilter', lineFilter); renderLines(); });
   $('#lineGrid').addEventListener('click', e => { const c = e.target.closest('[data-r]'); if (!c) return; const ri = +c.dataset.r; select({ route: ri }); fitShapes([...S.routeShapes[ri]]); $('#linesOv').classList.remove('show'); });
   const f = D.feed;
   $('#about').innerHTML = `Źródło danych: <b>ZTM Rzeszów</b> — <a href="https://otwartedane.erzeszow.pl/dataset/rozklady-jazdy-gtfs">otwartedane.erzeszow.pl</a>, w opracowaniu <a href="https://kmrzeszow.live/otwartedane/">kmrzeszow.live</a> (wersja ${esc(f.version || '')}, ważna ${esc(f.start || '')}–${esc(f.end || '')}, opublikował ${esc(f.publisher || '')}${f.built ? ', zbudowano ' + esc(f.built) : ''}). Dane zostały przetworzone. Gmina Miasto Rzeszów nie ponosi odpowiedzialności za dostępność, poprawność, aktualność, kompletność i jakość przetworzonych danych.<br><br>${WORLD ? `Budynki, woda, teren, drogi i tory pochodzą z <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> (ODbL). Wysokości budynków są z OSM, a gdy ich brak, szacowane z typu i powierzchni. Drzewa w lasach są rozmieszczane w granicach lasów z OSM, nie według rzeczywistych pozycji. ${WORLD.counts.buildings.toLocaleString('pl-PL')} budynków, ${WORLD.counts.trees.toLocaleString('pl-PL')} drzew.` : `Budynki i zieleń są <b>poglądowe</b> — generowane proceduralnie wzdłuż tras, nie odpowiadają rzeczywistej zabudowie. Trasy, przystanki i rozkład są prawdziwe. ${city.buildings.toLocaleString('pl-PL')} budynków, ${city.trees.toLocaleString('pl-PL')} drzew.`}`;
