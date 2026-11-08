@@ -12,9 +12,8 @@ on:
     paths-ignore:
       - "docs/screenshots/**"
       - "README.md"
-  workflow_dispatch:
-  schedule:
-    - cron: "17 4 * * 1"          # raz w tygodniu: świeży rozkład i OSM na screenach
+      - ".github/**"               # zmiany samego CI nie zmieniają strony, więc nie dają nowych screenów
+  workflow_dispatch:              # ręcznie, gdy screeny mają się odświeżyć bez zmian w kodzie
 
 permissions:
   contents: read
