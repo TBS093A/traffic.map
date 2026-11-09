@@ -6,7 +6,8 @@
 //   l     linia (numer), t: kurs (trip_id)
 //   from, to   miejsca planera: s:<przystanek> | p:<lat>,<lon>,<opis> | u:<ulica>;  at: godzina wyszukiwania
 //   time  godzina symulacji (HH:MM), speed: tempo
-//   m     tryby widoczne na mapie: b autobusy, r pociągi, a samoloty, i infrastruktura ("-" = nic)
+//   mode  tryb interfejsu: bus | rail | air | infra
+//   m     warstwy widoczne na mapie: b autobusy, r pociągi, a samoloty, i infrastruktura ("-" = nic)
 const toLatLon = (x, y) => [D.origin[0] + y / D.ky, D.origin[1] + x / D.kx];
 const fromLatLon = (lat, lon) => [(lon - D.origin[1]) * D.kx, (lat - D.origin[0]) * D.ky];
 
@@ -46,7 +47,8 @@ function encodeLink(st) {
   if (f && t) { q.set('from', f); q.set('to', t); if (st.at != null) q.set('at', fmtT(st.at)); }
   if (st.time != null) q.set('time', fmtT(st.time));
   if (st.speed != null && st.speed !== 1) q.set('speed', st.speed);
-  if (st.modes && st.modes !== 'bra') q.set('m', st.modes);       // domyślne tryby nie trafiają do linku
+  if (st.mode && st.mode !== 'bus') q.set('mode', st.mode);
+  if (st.modes && st.modes !== 'brai') q.set('m', st.modes);      // domyślne warstwy (wszystkie) nie trafiają do linku
   return q.toString().replace(/%2C/g, ',').replace(/%3A/g, ':').replace(/%2F/g, '/');   // czytelniej, a parser i tak to rozumie
 }
 // tekst po # -> stan (indeksy w bieżących danych; -1 / null gdy czegoś nie ma)
@@ -65,5 +67,6 @@ function decodeLink(hash) {
   out.at = hm(q.get('at')); out.time = hm(q.get('time'));
   if (q.has('speed')) out.speed = +q.get('speed');
   if (/^([brai]{1,4}|-)$/.test(q.get('m') || '')) out.modes = q.get('m');
+  if (['bus', 'rail', 'air', 'infra'].includes(q.get('mode'))) out.mode = q.get('mode');
   return out;
 }

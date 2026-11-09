@@ -4,7 +4,7 @@
 // działały z klawiatury i czytnika ekranu.
 
 // klikalne elementy list (wiersze, numery linii, podpowiedzi) jako przyciski
-const CLICKABLE = 'li[data-trip],li[data-stop],li[data-g],li[data-o],li[data-fi],.chip[data-r],.sug [data-pi],.sug [data-act]';
+const CLICKABLE = 'li[data-trip],li[data-stop],li[data-g],li[data-o],li[data-fi],li[data-air],li[data-inf],.chip[data-r],.sug [data-pi],.sug [data-act]';
 function enhance(root) {
   for (const el of root.querySelectorAll(CLICKABLE)) {
     if (el.tabIndex < 0 || !el.hasAttribute('tabindex')) el.tabIndex = 0;
@@ -15,7 +15,7 @@ function enhance(root) {
 function setupA11y() {
   const canvas = $('#c');
   canvas.setAttribute('role', 'img');
-  canvas.setAttribute('aria-label', 'Mapa Rzeszowa z autobusami. Linie, przystanki i planer są dostępne w przyciskach po prawej i pod klawiszami: / szukaj, L linie, P planer.');
+  canvas.setAttribute('aria-label', 'Mapa Rzeszowa z autobusami, pociągami, samolotami i infrastrukturą. Tryb wybierasz zakładkami u góry (klawisze 1–4); listy, szukajka i planer są w przyciskach po prawej i pod klawiszami: / szukaj, L lista, P planer.');
   for (const b of document.querySelectorAll('button[title]')) if (!b.hasAttribute('aria-label')) b.setAttribute('aria-label', b.title);
   $('#sheet').setAttribute('role', 'region'); $('#sheet').setAttribute('aria-label', 'Szczegóły');
   $('#toast').setAttribute('role', 'status'); $('#toast').setAttribute('aria-live', 'polite');

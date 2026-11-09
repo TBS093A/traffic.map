@@ -5,7 +5,7 @@ function toastFor(msg, ms = 2500) { toast(msg); clearTimeout(toastFor.t); toastF
 function viewState(withCam = true) {
   const ms = simMs(), off = Math.abs(ms - Date.now()) > 90000;
   const st = { stop: selStop, side: selStop >= 0 ? selSide : -1, route: selRoute, trip: selTrip,
-    time: off ? warsaw(ms).sec : null, speed: clock.speed, modes: modesCode() };
+    time: off ? warsaw(ms).sec : null, speed: clock.speed, modes: modesCode(), mode: uiMode };
   if (withCam) st.cam = { x: cam.x, z: cam.z, yaw: cam.yawT, half: cam.half };
   if (plan.sel >= 0 && plan.fromP && plan.toP) { st.from = plan.fromP; st.to = plan.toP; st.at = plan.t; }
   return st;
@@ -14,6 +14,7 @@ function applyLink(hash) {
   if (!hash || hash.length < 2) return false;
   const st = decodeLink(hash);
   if (st.modes) setModes(modesFromCode(st.modes));
+  if (st.mode) setUiMode(st.mode, true);
   if (st.cam) { cam.x = st.cam.x; cam.z = st.cam.z; cam.yaw = cam.yawT = st.cam.yaw; cam.half = st.cam.half; }
   if (st.time != null) { const ms = Date.now(), w = warsaw(ms); clock.base = ms + (st.time - Math.floor(w.sec)) * 1000; clock.perf = performance.now(); }
   if (st.speed != null && [0, 1, 10, 60].includes(st.speed)) { setSpeed(st.speed); syncSpeedBtns(); }

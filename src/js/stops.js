@@ -57,15 +57,28 @@ function groupRowsHtml(g) {
 }
 
 /* ======================= SZUKAJKA ======================= */
+// szuka w bieżącym trybie: autobusy (linie, przystanki) albo pociągi (kategorie, numery i nazwy pociągów, stacje)
+const inMode = (fn, fallback) => typeof uiMode === 'undefined' ? fallback : fn();
 function doSearch(qRaw) {
-  const n = norm(qRaw.trim());
-  const lines = D.routes.map((r, i) => ({ r, i })).filter(({ r }) => !n || r.n.toLowerCase().startsWith(n) || norm(r.name || '').includes(n));
-  let stops = [];
-  if (n.length >= 2) stops = S.groups.filter(g => g.n.includes(n) && g.trips > 0).sort((a, b) => (b.n.startsWith(n) - a.n.startsWith(n)) || (b.trips - a.trips)).slice(0, 40);
+  const n = norm(qRaw.trim()), rail = inMode(() => uiMode === 'rail', false);
+  const lines = D.routes.map((r, i) => ({ r, i })).filter(({ r }) => (r.m === 1) === rail && (!n || r.n.toLowerCase().startsWith(n) || norm(r.name || '').includes(n)));
+  let stops = [], trains = [];
+  if (n.length >= 2) stops = S.groups.filter(g => !!g.rail === rail && g.n.includes(n) && g.trips > 0).sort((a, b) => (b.n.startsWith(n) - a.n.startsWith(n)) || (b.trips - a.trips)).slice(0, 40);
+  if (rail && n.length >= 2) {                  // pociągi po numerze, nazwie albo kierunku; jeden wiersz na pociąg
+    const seen = new Set();
+    for (let ti = 0; ti < S.trips.length && trains.length < 30; ti++) {
+      const tr = S.trips[ti]; if (!routeIsRail(tr.route)) continue;
+      const key = tr.brig + '|' + tr.head; if (seen.has(key) || !(norm(tr.brig || '').includes(n) || norm(tr.head).includes(n))) continue;
+      seen.add(key); trains.push(ti);
+    }
+  }
   const lh = lines.length ? `<div class="schips">${lines.map(({ r, i }) => `<span class="chip" data-r="${i}" style="background:${rgbCss(r.c)}" title="${esc(r.name)}">${esc(r.n)}</span>`).join('')}</div>` : '<p class="note">Brak linii.</p>';
-  const sh = n.length < 2 ? '<p class="note">Wpisz co najmniej 2 znaki, żeby szukać przystanków.</p>'
-    : stops.length ? `<ul class="list">${stops.map(g => groupRowsHtml(g)).join('')}</ul>` : '<p class="note">Brak przystanków.</p>';
-  $('#results').innerHTML = `<h4>Linie <span>${lines.length}</span></h4>${lh}<h4>Przystanki <span>${n.length < 2 ? '' : stops.length}</span></h4>${sh}`;
+  const what = rail ? 'stacji' : 'przystanków';
+  const sh = n.length < 2 ? `<p class="note">Wpisz co najmniej 2 znaki, żeby szukać ${rail ? 'stacji i pociągów' : 'przystanków'}.</p>`
+    : stops.length ? `<ul class="list">${stops.map(g => groupRowsHtml(g)).join('')}</ul>` : `<p class="note">Brak ${what}.</p>`;
+  const th = rail && n.length >= 2 ? `<h4>Pociągi <span>${trains.length}</span></h4><ul class="list">${trains.map(ti => { const tr = S.trips[ti];
+    return `<li data-trip="${ti}">${chip(tr.route)}<span class="grow"><b>${esc(tr.brig || '')}</b> → ${esc(tr.head)}</span><span class="mut">${fmtT(tr.start)}</span></li>`; }).join('') || '<li class="past">Brak pociągów.</li>'}</ul>` : '';
+  $('#results').innerHTML = `<h4>${rail ? 'Kategorie' : 'Linie'} <span>${lines.length}</span></h4>${lh}${th}<h4>${rail ? 'Stacje' : 'Przystanki'} <span>${n.length < 2 ? '' : stops.length}</span></h4>${sh}`;
 }
 function openSearch() { openOv('searchOv'); const q = $('#q'); doSearch(q.value); setTimeout(() => { q.focus(); q.select(); }, 30); }
 
@@ -73,14 +86,17 @@ function openSearch() { openOv('searchOv'); const q = $('#q'); doSearch(q.value)
 const plCollator = new Intl.Collator('pl');
 function renderStopList(qRaw) {
   const n = norm(qRaw.trim());
-  const list = S.groups.filter(g => g.trips > 0 && (!n || g.n.includes(n))).sort((a, b) => plCollator.compare(a.name, b.name));
+  const rail = inMode(() => uiMode === 'rail', false);
+  $('#stopsTitle').textContent = rail ? 'Stacje' : 'Przystanki';
+  $('#sq').placeholder = rail ? 'filtruj stacje…' : 'filtruj przystanki…';
+  const list = S.groups.filter(g => !!g.rail === rail && g.trips > 0 && (!n || g.n.includes(n))).sort((a, b) => plCollator.compare(a.name, b.name));
   let html = '', letter = '';
   for (const g of list) {
     const L = g.name[0].toUpperCase();
     if (L !== letter && !n) { letter = L; html += `<li class="letter">${esc(L)}</li>`; }
     html += groupRowsHtml(g);
   }
-  $('#stopList').innerHTML = `<p class="note">${list.length} przystanków · każdy rozbity na strony ruchu (słupki)</p><ul class="list">${html}</ul>`;
+  $('#stopList').innerHTML = `<p class="note">${list.length} ${rail ? 'stacji · każda rozbita na perony i tory' : 'przystanków · każdy rozbity na strony ruchu (słupki)'}</p><ul class="list">${html}</ul>`;
 }
 function focusGroup(gid, zoom = 320) {
   const g = S.groups[gid]; select({ stop: g.members[0], route: -1, side: -1 });

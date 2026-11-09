@@ -118,6 +118,9 @@ let selSide = -1, stopFilter = store.get('stopFilter', 'all');
 function select({ trip = -1, stop = -1, route, side }) {
   selTrip = trip; selStop = stop; if (route !== undefined) selRoute = route;
   selAir = null; selInfra = null; followAir = false;
+  // zaznaczenie z mapy albo z listy przełącza interfejs na tryb zaznaczonego obiektu (pociąg -> pociągi)
+  const m = trip >= 0 ? modeOfTrip(trip) : stop >= 0 ? (stopIsRail(stop) ? 'rail' : 'bus') : route >= 0 ? (routeIsRail(route) ? 'rail' : 'bus') : null;
+  if (m && m !== uiMode) setUiMode(m, true);
   selSide = side !== undefined ? side : (stop >= 0 ? stop : -1);
   if (trip >= 0) selRoute = -1;
   if (trip < 0) follow = false;
@@ -222,10 +225,11 @@ addEventListener('keydown', e => {
   else if (k === 'a' || k === 'arrowleft') panBy(-1, 0); else if (k === 'd' || k === 'arrowright') panBy(1, 0);
   else if (k === ' ') { setSpeed(clock.speed ? 0 : 1); syncSpeedBtns(); e.preventDefault(); }
   else if (k === 'escape') select({ route: -1 });
-  else if (k === 'l') openLines();
-  else if (k === 'h') toggleFreq();
-  else if (k === '/') { e.preventDefault(); openSearch(); }
-  else if (k === 'p') openPlanner();});
+  else if (k === 'l') openModeList();
+  else if (k === 'h' && uiMode === 'bus') toggleFreq();
+  else if (k === '/' && (uiMode === 'bus' || uiMode === 'rail')) { e.preventDefault(); openSearch(); }
+  else if (k === 'p' && (uiMode === 'bus' || uiMode === 'rail')) openPlanner();
+  else if (k >= '1' && k <= '4') setUiMode(MODE_KEYS[+k - 1]);});
 $('#bRotL').onclick = () => rot(-1); $('#bRotR').onclick = () => rot(1);
 $('#bZin').onclick = () => zoomAt(innerWidth / 2, innerHeight / 2, .7); $('#bZout').onclick = () => zoomAt(innerWidth / 2, innerHeight / 2, 1.4);
 function syncSpeedBtns() { document.querySelectorAll('#speeds [data-speed]').forEach(b => b.classList.toggle('on', +b.dataset.speed === clock.speed)); }
@@ -236,14 +240,14 @@ document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e
 // lista linii: wszystkie albo tylko te, których autobus jest teraz na trasie
 let lineFilter = store.get('lineFilter', 'all');
 function renderLines() {
-  const act = new Set(buses.filter(b => b.ti >= 0).map(b => S.trips[b.ti].route));
+  const act = new Set(buses.filter(b => b.ti >= 0 && !routeIsRail(S.trips[b.ti].route)).map(b => S.trips[b.ti].route));
   document.querySelectorAll('[data-lf]').forEach(b => { b.classList.toggle('on', b.dataset.lf === lineFilter); if (b.dataset.lf === 'act') b.textContent = `Aktywne (${act.size})`; });
-  const list = D.routes.map((r, i) => [r, i]).filter(([, i]) => lineFilter === 'all' || act.has(i));
+  const list = D.routes.map((r, i) => [r, i]).filter(([r, i]) => r.m !== 1 && (lineFilter === 'all' || act.has(i)));
   $('#lineGrid').innerHTML = list.map(([r, i]) => `<span class="chip" data-r="${i}" style="background:${rgbCss(r.c)}${lineFilter === 'all' && !act.has(i) ? ';opacity:.45' : ''}" title="${esc(r.name)}">${esc(r.n)}</span>`).join('') || '<p class="note">Teraz żadna linia nie ma autobusu na trasie.</p>';
 }
 const openLines = () => { renderLines(); openOv('linesOv'); };
 $('#bLines').onclick = openLines; $('#bSearch').onclick = openSearch;
-$('#bStops').onclick = () => { openOv('stopsOv'); renderStopList($('#sq').value); };
+$('#bStops').onclick = () => { openOv('stopsOv'); renderStopList($('#sq').value); };   // w trybie pociągów ta sama lista pokazuje stacje
 $('#sq').addEventListener('input', e => renderStopList(e.target.value));
 $('#stopList').addEventListener('click', e => listClick(e, 'stopsOv'));
 $('#bPlan').onclick = openPlanner;
@@ -270,8 +274,9 @@ $('#pTime').addEventListener('change', () => runPlan());
 $('#q').addEventListener('input', e => doSearch(e.target.value));
 $('#q').addEventListener('keydown', e => { if (e.key === 'Enter') { const f = $('#results [data-r], #results [data-g]'); if (f) f.click(); } if (e.key === 'Escape') $('#searchOv').classList.remove('show'); });
 $('#results').addEventListener('click', e => {
-  const r = e.target.closest('[data-r]'), g = e.target.closest('[data-g]');
+  const r = e.target.closest('[data-r]'), g = e.target.closest('[data-g]'), t = e.target.closest('[data-trip]');
   if (r) { const ri = +r.dataset.r; select({ route: ri }); fitShapes([...S.routeShapes[ri]]); }
+  else if (t) { const ti = +t.dataset.trip; select({ trip: ti }); if (buses.some(b => b.ti === ti)) follow = true; else fitShapes([S.trips[ti].shape]); }
   else if (g) { listClick(e, 'searchOv'); return; }
   else return;
   $('#searchOv').classList.remove('show');

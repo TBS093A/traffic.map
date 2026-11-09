@@ -204,8 +204,18 @@ Bez danych OSM (np. `"map": {"enabled": false}`) strona wraca do zabudowy poglą
   takt w szczycie, pierwszy i ostatni kurs, przystanki linii). Strona pokazuje wynik, dopóki go nie obejrzysz.
 
 ## Tryby: autobusy, pociągi, samoloty, infrastruktura
-Przyciski 🚌 🚆 ✈ 🗼 w panelu w lewym górnym rogu włączają i wyłączają każdy tryb osobno. Wybór jest zapamiętany
-i trafia do udostępnianego linku (`m=bra…`).
+Zakładki u góry ekranu (na telefonie na dole, klawisze 1–4) przełączają **interfejs**: każdy tryb ma własne narzędzia
+po prawej, listy, szukajkę i planer. Mapa przez cały czas rysuje wszystko naraz. Kliknięcie pociągu, samolotu czy
+stacji bazowej na mapie samo przełącza tryb. Tryb trafia do linku (`mode=rail`).
+
+| Tryb | Narzędzia |
+|---|---|
+| 🚌 Autobusy | szukaj linii i przystanków, linie ZTM, przystanki, planer (same autobusy), częstotliwość |
+| 🚆 Pociągi | szukaj pociągu po numerze lub nazwie i stacji, pociągi teraz w okolicy, stacje, planer autobus + pociąg |
+| ✈ Samoloty | samoloty w zasięgu (od najbliższych), lotnisko Jasionka: podejścia, starty, płyta, dojazd pociągiem i autobusem |
+| 🗼 Infrastruktura | listy: stacje bazowe (filtr operatora), stacje paliw, ładowarki, maszty, statystyki sieci energetycznej |
+
+Co widać na mapie, ustawia się osobno: Ustawienia → „Na mapie” (warstwy, w linku `m=brai`).
 - **🚆 Pociągi** (`rail.py`): rozkład wszystkich pociągów w Polsce ([mkuran.pl/gtfs](https://mkuran.pl/gtfs/), dane PKP PLK)
   przycięty do obszaru mapy: kursy IC i PolRegio między 33 stacjami (Rzeszów Główny, Zachodni, Staroniwa, Jasionka Lotnisko…).
   Pociągi są dopisywane do GTFS autobusów, więc tablice odjazdów stacji, rozkład i planer połączeń (autobus + pociąg)

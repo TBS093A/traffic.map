@@ -49,7 +49,7 @@ function planRoute(fromP, toP, ymd, t0) {
     let l = patCache.get(pi); if (l) return l; l = [];
     for (const ti of S.patTrips[pi]) {
       const tr = S.trips[ti]; let off;
-      if (typeof routeOn === 'function' && !routeOn(tr.route)) continue;   // wyłączony tryb (np. pociągi) nie wchodzi do planu
+      if (typeof planRouteOk === 'function' && !planRouteOk(tr.route)) continue;   // tryb autobusów: bez pociągów; ukryta warstwa: bez niej
       if (svT.has(tr.service)) off = 0; else if (svY.has(tr.service)) off = -86400; else continue;
       if (tr.end + off < t0 || tr.start + off > t0 + HORIZON) continue;
       l.push([ti, off]);

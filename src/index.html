@@ -25,7 +25,6 @@
   <div class="row"><span id="title">RZESZÓW W PIKSELACH</span></div>
   <div class="row"><span id="clock">--:--:--</span><span id="day"></span></div>
   <div class="row" id="wx" hidden></div>
-  <div class="row" id="modes" role="group" aria-label="Co widać na mapie"></div>
   <div class="row" id="speeds">
     <button data-speed="0" title="Pauza">❚❚</button>
     <button data-speed="1" class="on">1×</button>
@@ -36,11 +35,20 @@
   <div class="row"><button id="bAlerts" class="warnbtn" hidden></button><button id="bChanges" class="newsbtn" hidden>📰 Zmiany w rozkładzie</button></div>
 </div>
 
+<nav id="modebar" role="tablist" aria-label="Tryb"></nav>
+
+<!-- narzędzia zależą od trybu: data-for = tryby, w których przycisk jest widoczny -->
 <div id="tools">
-  <button id="bSearch" title="Szukaj (/)">🔍</button>
-  <button id="bLines" title="Linie">🚌</button>
-  <button id="bStops" title="Przystanki">🚏</button>
-  <button id="bPlan" title="Wyznacz trasę (P)">🧭</button>  <button id="bSet" title="Ustawienia">⚙</button>
+  <button id="bSearch" data-for="bus rail" title="Szukaj (/)">🔍</button>
+  <button id="bLines" data-for="bus" title="Linie (L)">🚌</button>
+  <button id="bStops" data-for="bus" title="Przystanki">🚏</button>
+  <button id="bTrains" data-for="rail" title="Pociągi w okolicy (L)">🚆</button>
+  <button id="bStations" data-for="rail" title="Stacje">🚉</button>
+  <button id="bPlan" data-for="bus rail" title="Wyznacz trasę (P)">🧭</button>
+  <button id="bPlanes" data-for="air" title="Samoloty w zasięgu (L)">✈</button>
+  <button id="bAirport" data-for="air" title="Lotnisko Rzeszów-Jasionka">🛫</button>
+  <button id="bInfra" data-for="infra" title="Infrastruktura: lista (L)">📋</button>
+  <button id="bSet" title="Ustawienia">⚙</button>
 </div>
 <div id="nav">
   <button id="bRotL" title="Obróć (Q)">⟲</button>
@@ -65,8 +73,29 @@
   <div id="results"></div>
 </div></div>
 
+<div id="trainsOv" class="overlay"><div class="panel">
+  <h3>Pociągi w okolicy <button data-close="trainsOv" style="min-height:32px;width:34px;padding:0">✕</button></h3>
+  <div id="trainList"></div>
+</div></div>
+
+<div id="planesOv" class="overlay"><div class="panel">
+  <h3>Samoloty w zasięgu <button data-close="planesOv" style="min-height:32px;width:34px;padding:0">✕</button></h3>
+  <div id="planeList"></div>
+</div></div>
+
+<div id="airportOv" class="overlay"><div class="panel">
+  <h3>Lotnisko Rzeszów-Jasionka <button data-close="airportOv" style="min-height:32px;width:34px;padding:0">✕</button></h3>
+  <div id="airportBody"></div>
+</div></div>
+
+<div id="infraOv" class="overlay"><div class="panel">
+  <h3>Infrastruktura <button data-close="infraOv" style="min-height:32px;width:34px;padding:0">✕</button></h3>
+  <div class="fbar" id="infraTabs"></div>
+  <div id="infraList"></div>
+</div></div>
+
 <div id="stopsOv" class="overlay"><div class="panel">
-  <h3>Przystanki <button data-close="stopsOv" style="min-height:32px;width:34px;padding:0">✕</button></h3>
+  <h3><span id="stopsTitle">Przystanki</span> <button data-close="stopsOv" style="min-height:32px;width:34px;padding:0">✕</button></h3>
   <input type="text" id="sq" placeholder="filtruj przystanki…" autocomplete="off" spellcheck="false">
   <div id="stopList"></div>
 </div></div>
@@ -107,6 +136,7 @@
     <label>Pogoda (Open-Meteo)</label><div class="seg" data-opt="wx"><button data-v="auto">na żywo</button><button data-v="off">wył.</button></div>
     <label>Pora roku</label><div class="seg" data-opt="season"><button data-v="auto">auto</button><button data-v="spring">wiosna</button><button data-v="summer">lato</button><button data-v="autumn">jesień</button><button data-v="winter">zima</button></div>
     <label>Podpisy ulic i przystanków</label><div class="seg" data-opt="lbl"><button data-v="1">wł.</button><button data-v="0">wył.</button></div>
+    <label>Na mapie</label><div class="seg multi" id="layers" role="group" aria-label="Co widać na mapie"></div>
     <label>Budynki i drzewa</label><div class="seg" data-opt="bld"><button data-v="1">wł.</button><button data-v="0">wył.</button></div>
     <label>Ustaw godzinę</label><div class="seg"><input type="time" id="setTime" step="60" style="width:120px"></div>
   </div>
@@ -156,6 +186,7 @@
 /*@include js/geocode.js*/
 /*@include js/planner.js*/
 /*@include js/plan-ui.js*/
+/*@include js/mode-ui.js*/
 /*@include js/links.js*/
 /*@include js/share.js*/
 /*@include js/timetable.js*/
