@@ -93,7 +93,7 @@ function pickAir(px, py, best) {
 let followAir = false;
 function selectAir(hex) {
   selAir = hex; followAir = false;
-  if (hex) { selTrip = -1; selStop = -1; selRoute = -1; follow = false; if (typeof selInfra !== 'undefined') selInfra = null; }
+  if (hex) { selTrip = -1; selStop = -1; selRoute = -1; follow = false; selInfra = null; setUiMode('air', true); }
   lastSheet = 0; renderSheet();
 }
 function airFollowTick(dt) {

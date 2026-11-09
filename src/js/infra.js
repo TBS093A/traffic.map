@@ -93,7 +93,7 @@ function pickInfra(px, py, best) {
 }
 function selectInfra(i) {
   selInfra = i;
-  if (i !== null) { selTrip = -1; selStop = -1; selRoute = -1; follow = false; selAir = null; }
+  if (i !== null) { selTrip = -1; selStop = -1; selRoute = -1; follow = false; selAir = null; setUiMode('infra', true); }
   lastSheet = 0; renderSheet();
 }
 const GEN = t => /^5G/.test(t) ? '5G' : /^LTE/.test(t) ? '4G' : /^UMTS/.test(t) ? '3G' : /^GSM-R/.test(t) ? 'GSM-R' : /^GSM/.test(t) ? '2G' : t;
