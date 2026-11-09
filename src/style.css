@@ -24,10 +24,15 @@ button.on{background:var(--acc);color:#141622;border-color:var(--acc)}
 #modebar button span{font-size:18px;line-height:1}
 #modebar button.on{background:#f2d36b;color:#141622}
 #modebar button[hidden]{display:none}
+#subbar{position:fixed;left:50%;top:62px;transform:translateX(-50%);display:none;gap:4px;align-items:center;padding:4px 6px;background:var(--panel);border:2px solid var(--line);box-shadow:4px 4px 0 rgba(0,0,0,.35);z-index:3;font-size:13px}
+body[data-mode="infra"] #subbar{display:flex}
+#subbar button{min-height:30px;padding:2px 8px;font-size:13px;opacity:.55}
+#subbar button.on{opacity:1;background:#f2d36b;color:#141622}
 @media (max-width:900px){
   #modebar{top:auto;bottom:calc(10px + var(--sheetH,0px));transition:bottom .2s}
-  #modebar button b{display:none}
+  #modebar button b,#subbar button b,#subbar .mut{display:none}
   #modebar button{padding:2px 12px}
+  #subbar{top:auto;bottom:calc(62px + var(--sheetH,0px))}
 }
 /* narzędzia po prawej: tylko te dla bieżącego trybu */
 body[data-mode="bus"] #tools [data-for]:not([data-for~="bus"]),

@@ -168,7 +168,7 @@ function pick(px, py, touch = false) {
   {
     const roof = stopRoofY(cam.half);
     D.stops.forEach(([x, y], i) => {
-      if (!stopOn(i)) return;
+      if (!stopOn(i) || !groupInMode(S.groups[S.stopGroup[i]])) return;   // kropki tylko w swoim trybie
       const [sx, sy] = worldToScreen(x, roof, -y), [gx, gy] = worldToScreen(x, roof / 2, -y);
       const d = Math.min(Math.hypot(sx - px, sy - py), Math.hypot(gx - px, gy - py));
       if (d < bestS) { bestS = d; bs = i; }
@@ -180,6 +180,11 @@ function pick(px, py, touch = false) {
       if (d <= tol && d < bestS) { bestS = d; bs = h.stop; }
     }
   }
+  if (uiMode === 'air') {                        // punkt lotniska (kropka albo podpis)
+    const [ax, ay] = airportXY(), [sx, sy] = worldToScreen(ax, 1, -ay);
+    if (bs === AIRPORT_HIT || Math.hypot(sx - px, sy - py) < (touch ? 30 : 20)) { const [, hex] = pickAir(px, py, touch ? 30 : 20); if (hex) selectAir(hex); else openAirport(); return; }
+  }
+  if (bs === AIRPORT_HIT) bs = -1;
   const [bestA, hex] = pickAir(px, py, Math.min(bestB, bestS) + .01);     // samolot nad wszystkim
   if (hex) { selectAir(hex); return; }
   const [bestI, inf] = pickInfra(px, py, Math.min(bestB, bestS, touch ? 40 : 30));

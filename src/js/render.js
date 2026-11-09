@@ -57,6 +57,7 @@ function render(now) {
   syncStops(); if (stopBox.count) { gl.bindVertexArray(stopBox.vao); gl.drawArraysInstanced(gl.TRIANGLES, 0, 36, stopBox.count); }
   drawInfra();
   if (nDyn) { gl.bindBuffer(gl.ARRAY_BUFFER, dynBox.buf); gl.bufferSubData(gl.ARRAY_BUFFER, 0, dyn, 0, nDyn * 12); gl.bindVertexArray(dynBox.vao); gl.drawArraysInstanced(gl.TRIANGLES, 0, 36, nDyn); }
+  drawClouds(sun, t);
 
   // post
   gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, canvas.width, canvas.height); gl.disable(gl.DEPTH_TEST);

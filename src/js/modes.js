@@ -19,7 +19,7 @@ const hasRail = () => D.routes.some(r => r.m === 1);
 const planRouteOk = r => routeOn(r) && (uiMode !== 'bus' || !routeIsRail(r));
 // lista w trybie: linie autobusowe albo kategorie pociągów; przystanki albo stacje
 const routeInMode = r => uiMode === 'rail' ? routeIsRail(r) : !routeIsRail(r);
-const groupInMode = g => uiMode === 'rail' ? !!g.rail : !g.rail;
+const groupInMode = g => uiMode === 'rail' ? !!g.rail : uiMode === 'bus' ? !g.rail : false;   // kropki i podpisy: tylko w swoim trybie
 
 // litery w linku: b = autobusy, r = pociągi, a = samoloty, i = infrastruktura
 const modesCode = () => MODE_KEYS.filter(k => modes[k]).map(k => k[0]).join('') || '-';
@@ -51,7 +51,7 @@ function syncLayerBtns() {
 function setUiMode(k, quiet = false) {
   if (!MODE_KEYS.includes(k)) return;
   const changed = k !== uiMode;
-  uiMode = k; store.set('mode', k); document.body.dataset.mode = k;
+  uiMode = k; store.set('mode', k); document.body.dataset.mode = k; modesVer++;   // podpisy i kropki zależą od trybu
   if (!modes[k]) setModes({ [k]: true });                       // tryb bez swojej warstwy na mapie nie ma sensu
   syncModeBar();
   if (!changed || quiet) return;

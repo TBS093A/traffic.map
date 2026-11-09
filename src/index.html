@@ -36,6 +36,7 @@
 </div>
 
 <nav id="modebar" role="tablist" aria-label="Tryb"></nav>
+<div id="subbar" role="group" aria-label="Sekcje infrastruktury na mapie"></div>
 
 <!-- narzędzia zależą od trybu: data-for = tryby, w których przycisk jest widoczny -->
 <div id="tools">
@@ -136,6 +137,7 @@
     <label>Pogoda (Open-Meteo)</label><div class="seg" data-opt="wx"><button data-v="auto">na żywo</button><button data-v="off">wył.</button></div>
     <label>Pora roku</label><div class="seg" data-opt="season"><button data-v="auto">auto</button><button data-v="spring">wiosna</button><button data-v="summer">lato</button><button data-v="autumn">jesień</button><button data-v="winter">zima</button></div>
     <label>Podpisy ulic i przystanków</label><div class="seg" data-opt="lbl"><button data-v="1">wł.</button><button data-v="0">wył.</button></div>
+    <label>Chmury nad krawędzią mapy</label><div class="seg" data-opt="clouds"><button data-v="1">wł.</button><button data-v="0">wył.</button></div>
     <label>Na mapie</label><div class="seg multi" id="layers" role="group" aria-label="Co widać na mapie"></div>
     <label>Budynki i drzewa</label><div class="seg" data-opt="bld"><button data-v="1">wł.</button><button data-v="0">wył.</button></div>
     <label>Ustaw godzinę</label><div class="seg"><input type="time" id="setTime" step="60" style="width:120px"></div>
@@ -170,6 +172,7 @@
 /*@include js/shaders.js*/
 /*@include js/gpu.js*/
 /*@include js/terrain.js*/
+/*@include js/clouds.js*/
 /*@include js/city.js*/
 /*@include js/world.js*/
 /*@include js/camera.js*/

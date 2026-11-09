@@ -38,7 +38,7 @@ async function main() {
     + (f.bts_source ? '<br><br>Stacje bazowe telefonii: <a href="https://bip.uke.gov.pl/pozwolenia-radiowe/">UKE, wykaz pozwoleń radiowych</a>. Sieć energetyczna, maszty, stacje paliw i ładowarki: OpenStreetMap (ODbL).' : '')
     + '<br><br>Jakość powietrza: <a href="https://open-meteo.com/en/docs/air-quality-api">Open-Meteo Air Quality</a> (model CAMS, Copernicus).');
   if (f.rail_source) $('#attr').textContent += ' · Pociągi: PKP PLK';
-  initModes(); pollAir();
+  initModes(); syncInfraBar(); pollAir();
   syncOpts(); syncSpeedBtns(); autoLive(); setupA11y(); loadChanges(); startWeather();
   setProgress(1, 'Gotowe'); resize(); updateCamera();
   $('#loading').style.display = 'none';
