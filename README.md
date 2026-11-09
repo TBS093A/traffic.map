@@ -26,7 +26,7 @@ Budynki, woda, teren, drogi i tory pochodzą z OpenStreetMap.
 
 **Telefon:** ten sam widok na wąskim ekranie.
 
-Screeny pokazują rozkład i dane OSM z 2026-11-08.
+Screeny pokazują rozkład i dane OSM z 2026-11-09.
 
 ## Pliki
 | Plik | Co robi |
