@@ -7,6 +7,19 @@ const FUEL_BRANDS = [[/orlen/i, [.85, .1, .12]], [/\bbp\b/i, [.1, .55, .2]], [/s
   [/moya/i, [.1, .35, .75]], [/lotos/i, [.95, .75, .1]], [/amic/i, [.2, .45, .8]], [/leclerc|auchan|carrefour/i, [.2, .4, .7]]];
 const fuelCol = b => (FUEL_BRANDS.find(([re]) => re.test(b || '')) || [0, [.45, .5, .56]])[1];
 const MAST_KIND = ['Maszt telekomunikacyjny', 'Maszt nadawczy RTV', 'Wieża kontroli lotów'];
+// sekcje rysowane na mapie: wybór na pasku pod zakładkami w trybie infrastruktury
+const INFRA_SECTIONS = [['power', '⚡', 'Energetyka'], ['bts', '📶', 'Stacje bazowe'], ['fuel', '⛽', 'Paliwo'], ['ev', '🔌', 'Ładowarki'], ['mast', '📡', 'Maszty']];
+const infraShow = Object.assign({ power: true, bts: true, fuel: true, ev: true, mast: true }, store.get('infraShow', {}));
+function setInfraShow(k, on) {
+  infraShow[k] = on; store.set('infraShow', infraShow); infraScale = 0;          // przebudowa przy następnej klatce
+  if (selInfra !== null && infraPts[selInfra] && !infraShow[infraPts[selInfra].type]) select({ route: -1 });
+  syncInfraBar();
+}
+function syncInfraBar() {
+  const bar = $('#subbar'); if (!bar) return;
+  if (!bar.childElementCount) bar.innerHTML = '<span class="mut">Na mapie:</span>' + INFRA_SECTIONS.map(([k, ic, name]) => `<button data-sec="${k}" title="${name}"><span aria-hidden="true">${ic}</span> <b>${name}</b></button>`).join('');
+  bar.querySelectorAll('[data-sec]').forEach(b => { const on = infraShow[b.dataset.sec]; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+}
 const pylonH = kv => kv >= 380 ? 42 : kv >= 200 ? 35 : kv >= 100 ? 26 : 20;
 
 function initInfra() {
@@ -24,7 +37,7 @@ function buildInfra(s) {
   const inst = [], box = (x, y, b, a, l, h, w, c, k = 2) => inst.push(x, b, -y, a, l, h, w, k, c[0], c[1], c[2], 0);
   const STEEL = [.55, .57, .6], WIRE = [.16, .16, .18], WOOD = [.42, .37, .32];
   const t = Math.max(1, s / 3);                                   // z daleka grubsze słupy i przewody, żeby linie było widać
-  if (INFRA) {
+  if (INFRA && infraShow.power) {
     for (const [kv, minor, enc] of INFRA.pw.l) {               // słupy w wierzchołkach linii, przewody między nimi
       const p = undelta(enc), n = p.length / 2, H = minor ? 9 : pylonH(kv);
       for (let i = 0; i < n; i++) {
@@ -43,6 +56,7 @@ function buildInfra(s) {
   }
   const m = Math.max(1, s / 2);                                   // znaczniki: z daleka większe
   for (const P of infraPts) {
+    if (!infraShow[P.type]) continue;
     const { x, y } = P;
     if (P.type === 'mast') {
       if (P.kind === 1) for (let k = 0; k < 6; k++) box(x, y, P.h * k / 6, 0, 3.5, P.h / 6, 3.5, k % 2 ? [.95, .95, .95] : [.85, .15, .12]);
@@ -66,6 +80,7 @@ function buildInfra(s) {
   }
   return new Float32Array(inst);
 }
+$('#subbar').addEventListener('click', e => { const b = e.target.closest('[data-sec]'); if (b) setInfraShow(b.dataset.sec, !infraShow[b.dataset.sec]); });
 function syncInfra() {
   if (!modes.infra || (!INFRA && !BTS)) return false;
   const sc = stopScaleFor(cam.half);
@@ -85,6 +100,7 @@ function pickInfra(px, py, best) {
   let hit = null;
   if (!modes.infra) return [best, hit];
   infraPts.forEach((P, i) => {
+    if (!infraShow[P.type]) return;
     const [sx, sy] = worldToScreen(P.x, P.h, -P.y), [gx, gy] = worldToScreen(P.x, P.h / 2, -P.y);
     const d = Math.min(Math.hypot(sx - px, sy - py), Math.hypot(gx - px, gy - py));
     if (d < best) { best = d; hit = i; }

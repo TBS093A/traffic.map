@@ -215,7 +215,15 @@ stacji bazowej na mapie samo przełącza tryb. Tryb trafia do linku (`mode=rail`
 | ✈ Samoloty | samoloty w zasięgu (od najbliższych), lotnisko Jasionka: podejścia, starty, płyta, dojazd pociągiem i autobusem |
 | 🗼 Infrastruktura | listy: stacje bazowe (filtr operatora), stacje paliw, ładowarki, maszty, statystyki sieci energetycznej |
 
-Co widać na mapie, ustawia się osobno: Ustawienia → „Na mapie” (warstwy, w linku `m=brai`).
+Co widać na mapie, ustawia się osobno: Ustawienia → „Na mapie” (warstwy, w linku `m=brai`). Kropki i podpisy
+przystanków należą do trybu: autobusowe w autobusach, stacje w pociągach, w samolotach jest punkt lotniska Jasionka
+(kliknięcie otwiera ruch na lotnisku). W trybie infrastruktury pasek pod zakładkami wybiera sekcje rysowane na mapie
+(energetyka, stacje bazowe, paliwo, ładowarki, maszty).
+
+**Chmury:** pola i lasy daleko od komunikacji oraz wszystko za krawędzią danych zakrywa animowany bank pixel-artowych
+chmur (kłęby z jasną krawędzią, cieniem i obrysem, dryfujące z wiatrem); front ma zatoki i jęzory, miasto zostaje
+odkryte. Nad miastem pływa kilka cumulusów, więcej przy pochmurnej pogodzie. Pomysł za
+[mapą Krakowa](https://michalpietralik.pl/cracowpixelmap/). Do wyłączenia w ustawieniach.
 - **🚆 Pociągi** (`rail.py`): rozkład wszystkich pociągów w Polsce ([mkuran.pl/gtfs](https://mkuran.pl/gtfs/), dane PKP PLK)
   przycięty do obszaru mapy: kursy IC i PolRegio między 33 stacjami (Rzeszów Główny, Zachodni, Staroniwa, Jasionka Lotnisko…).
   Pociągi są dopisywane do GTFS autobusów, więc tablice odjazdów stacji, rozkład i planer połączeń (autobus + pociąg)

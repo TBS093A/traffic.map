@@ -65,6 +65,7 @@ void main(){
 
 // przystanki zaznaczonego kursu albo całej zaznaczonej linii (null, gdy nic nie zaznaczono)
 const routeStopSets = new Map();
+const AIRPORT_HIT = -2;                         // podpis lotniska w LBL.hits: kliknięcie otwiera okno lotniska
 function litStops() {
   if (selTrip >= 0) return new Set(S.trips[selTrip].stops);
   if (selRoute < 0) return null;
@@ -107,9 +108,14 @@ function rebuildLabels() {
     }
     if (!force && hits(circ)) return false;
     add(circ); for (const v of q) out.push(v);
-    if (stop >= 0) LBL.hits.push({ stop, x, y, yH, s0, w: wPx, h: px });   // podpis przystanku klika się jak kropka
+    if (stop >= 0 || stop === AIRPORT_HIT) LBL.hits.push({ stop, x, y, yH, s0, w: wPx, h: px });   // podpis przystanku klika się jak kropka
     return true;
   };
+  if (uiMode === 'air') {                       // tryb samolotów: punkt lotniska zamiast przystanków
+    const [ax, ay] = airportXY(), g = LBL.g.get('\u0001'), r = 11 * wpp, tint = [.55, .8, 1, 2];
+    quad(out, ax, -ay, 1, R, A, r / sq(R[0], R[1]), r / sq(A[0], A[1]), g, tint);
+    putText('Lotnisko Rzeszów-Jasionka (RZE)', ax, ay, LBL.stopPx + 2, [.78, .9, 1, 2], true, 1, false, AIRPORT_HIT);
+  }
   for (const mk of planMarkers()) {
     const g = LBL.g.get('\u0001'), r = 9 * wpp;
     quad(out, mk.x, -mk.y, .7, R, A, r / sq(R[0], R[1]), r / sq(A[0], A[1]), g, mk.tint);
@@ -122,8 +128,10 @@ function rebuildLabels() {
     const lit = litStops();                     // przystanki zaznaczonego autobusu / linii: reszta przygaszona
     const TDIM = [.45, .72, 1, .22], TDOT = [.45, .72, 1, 2];
     const TRAIL = [1, .62, .32, 2];               // stacje kolejowe: pomarańczowe kropki
+    // kropki i podpisy tylko w swoim trybie (przystanki w autobusach, stacje w pociągach), zaznaczone zawsze
+    const show = grp => groupOn(grp) && (groupInMode(grp) || isSel(grp.id) || (lit && grp.members.some(m => lit.has(m))));
     for (const grp of S.groups) {
-      if (!groupOn(grp)) continue;
+      if (!show(grp)) continue;
       for (const m of grp.members) {
         const [x, y] = D.stops[m], sel = isSel(grp.id) && (grp.id !== selG || selSide < 0 || selSide === m);
         const on = lit && lit.has(m), k = sel ? 1.8 : on ? Math.max(1, .9 / (dpx / LBL.discPx)) : lit ? .7 : 1;
@@ -133,7 +141,7 @@ function rebuildLabels() {
     let n = 0;
     if (lit) {                                  // podpisy tylko przystanków zaznaczonego kursu, przy każdym zoomie
       for (const grp of S.groups) {
-        const m = grp.members.find(mm => lit.has(mm)); if (m === undefined || !groupOn(grp)) continue;
+        const m = grp.members.find(mm => lit.has(mm)); if (m === undefined || !show(grp)) continue;
         putText(grp.name, D.stops[m][0], D.stops[m][1], LBL.stopPx, isSel(grp.id) ? TSEL : TP, isSel(grp.id), roof, false, m);
       }
     }
@@ -141,7 +149,7 @@ function rebuildLabels() {
     const close = cam.half < 230;
     for (const grp of order) {
       const sel = isSel(grp.id);
-      if ((lit && !sel) || !groupOn(grp)) continue;
+      if ((lit && !sel) || !show(grp)) continue;
       if (!(cam.half < 520 || sel)) break;
       if (n > 300) break;
       if ((close || (sel && cam.half < 700)) && grp.members.length > 1) {   // z bliska: nazwa grupy, pod nią każda strona ruchu
